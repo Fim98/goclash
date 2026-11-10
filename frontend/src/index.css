@@ -121,7 +121,9 @@
 }
 
 /* Motion contract: everything springs on the same curve; when the OS asks for
-   less motion we drop displacement and rotation entirely, keeping colour. */
+   less motion we drop displacement and rotation entirely, keeping colour.
+   Tailwind v4 emits `rotate`/`translate`/`scale` as individual CSS properties,
+   so all three must be neutralised alongside `transform`. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -131,6 +133,9 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
     transform: none !important;
+    rotate: none !important;
+    translate: none !important;
+    scale: none !important;
   }
 }
 
