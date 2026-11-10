@@ -1,0 +1,3628 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoClash · 俏皮野兽派 UI 参考稿</title>
+    <style>
+      /* ============================================================
+     GoClash — Playful Neo-Brutalist UI reference
+     4px ink border · 0 radius · hard (unblurred) shadow · -2°~3° tilt
+     No gradients, no soft gray, no emoji. Icons are inline SVG only.
+     ============================================================ */
+      :root {
+        --ink: #000;
+        --white: #fff;
+        --coral: #ff6b6b;
+        --mint: #4ecdc4;
+        --sunny: #ffe66d;
+        --sea: #95e1d3;
+        --peach: #f38181;
+        --ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #fff;
+        color: var(--ink);
+        font-family:
+          "Inter", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: 80px 120px 200px;
+      }
+      svg.i {
+        width: 18px;
+        height: 18px;
+        display: block;
+        flex: none;
+      }
+      .board {
+        display: flex;
+        flex-direction: column;
+        gap: 96px;
+        width: max-content;
+      }
+      .row {
+        display: flex;
+        gap: 120px;
+        align-items: flex-start;
+      }
+      .screen {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+      .label {
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 1.4px;
+      }
+
+      /* ---------- masthead ---------- */
+      .masthead {
+        width: 1560px;
+        margin-bottom: 96px;
+        border: 4px solid var(--ink);
+        box-shadow: 12px 12px 0 var(--coral);
+        padding: 32px;
+        display: flex;
+        gap: 32px;
+        align-items: flex-end;
+      }
+      .masthead h1 {
+        font-size: 56px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -2px;
+      }
+      .masthead p {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.5;
+        margin-top: 12px;
+        max-width: 640px;
+      }
+      .masthead .sw {
+        display: flex;
+        gap: 12px;
+        margin-left: auto;
+      }
+      .masthead .sw span {
+        width: 64px;
+        height: 64px;
+        border: 2px solid var(--ink);
+        display: block;
+      }
+      .masthead .sw em {
+        display: block;
+        font-size: 8px;
+        font-weight: 900;
+        margin-top: 8px;
+        letter-spacing: 0.4px;
+        font-style: normal;
+        text-align: center;
+      }
+
+      /* ---------- window shell ---------- */
+      .win {
+        width: 1440px;
+        height: 900px;
+        background: #fff;
+        border: 4px solid var(--ink);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+      .win.sm {
+        width: 420px;
+        height: 620px;
+        box-shadow: 12px 12px 0 var(--coral);
+      }
+      .tb {
+        height: 44px;
+        flex: none;
+        border-bottom: 4px solid var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px 0 20px;
+      }
+      .win.sm .tb {
+        height: 40px;
+        padding: 0 12px 0 16px;
+      }
+      .dots {
+        display: flex;
+        gap: 8px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--ink);
+      }
+      .dot.c {
+        background: var(--coral);
+      }
+      .dot.s {
+        background: var(--sunny);
+      }
+      .dot.m {
+        background: var(--mint);
+      }
+      .appname {
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: -0.2px;
+      }
+      .appver {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .hint {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--sunny);
+        border: 2px solid var(--ink);
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .hint b {
+        width: 8px;
+        height: 8px;
+        background: var(--ink);
+        display: block;
+      }
+
+      .body {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .side {
+        width: 244px;
+        flex: none;
+        border-right: 4px solid var(--ink);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo {
+        width: 48px;
+        height: 48px;
+        flex: none;
+        background: var(--coral);
+        border: 4px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--sunny);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        font-weight: 900;
+        color: #fff;
+        letter-spacing: -0.6px;
+      }
+      .brand h2 {
+        font-size: 20px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -0.6px;
+      }
+      .brand p {
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .nav a {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink);
+        text-decoration: none;
+        border: 0;
+      }
+      .nav a.on {
+        background: var(--coral);
+        border: 4px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--mint);
+        color: #fff;
+        font-weight: 900;
+      }
+      .kernel {
+        margin-top: auto;
+        border: 2px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--mint);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .kernel .krow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .kernel .kdot {
+        width: 10px;
+        height: 10px;
+        background: var(--mint);
+        border: 2px solid var(--ink);
+      }
+      .kernel .kmeta {
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .main {
+        flex: 1;
+        min-width: 0;
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .ph {
+        height: 64px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      h1 {
+        font-size: 34px;
+        font-weight: 900;
+        line-height: 1.12;
+        letter-spacing: -1px;
+      }
+      .ph .sub {
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .ph-r {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* ---------- controls ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 44px;
+        padding: 0 20px;
+        background: var(--coral);
+        border: 4px solid var(--ink);
+        color: #fff;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 900;
+        box-shadow: 5px 5px 0 var(--mint);
+        transform: rotate(-2deg);
+        cursor: pointer;
+        transition:
+          transform 0.3s var(--ease),
+          box-shadow 0.3s var(--ease);
+      }
+      .btn:hover {
+        transform: rotate(3deg) translateY(-4px);
+        box-shadow: 8px 8px 0 var(--sunny);
+      }
+      .btn:active {
+        transform: rotate(0) translate(6px, 6px);
+        box-shadow: none;
+      }
+      .btn.ghost {
+        background: #fff;
+        color: var(--ink);
+        box-shadow: 4px 4px 0 var(--sunny);
+        transform: none;
+      }
+      .btn.ghost:hover {
+        transform: translateY(-3px) rotate(2deg);
+        box-shadow: 6px 6px 0 var(--sunny);
+      }
+      .btn.ink {
+        background: var(--ink);
+        color: #fff;
+        box-shadow: 6px 6px 0 var(--sunny);
+      }
+      .ibtn {
+        width: 44px;
+        height: 44px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border: 4px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--mint);
+        cursor: pointer;
+        transition: transform 0.3s var(--ease);
+      }
+      .ibtn:hover {
+        transform: translateY(-2px) rotate(2deg);
+      }
+      .input {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 44px;
+        padding: 0 12px;
+        background: #fff;
+        border: 4px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--sea);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .input.wide {
+        width: 210px;
+      }
+      .input.mid {
+        width: 220px;
+      }
+      .input.narrow {
+        width: 240px;
+      }
+      .input svg {
+        width: 14px;
+        height: 14px;
+      }
+      .seg {
+        display: inline-flex;
+        border: 4px solid var(--ink);
+      }
+      .seg button {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0 22px;
+        height: 40px;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .seg button.on {
+        background: var(--coral);
+        color: #fff;
+        font-weight: 900;
+      }
+      .seg.sm button {
+        font-size: 12px;
+        padding: 0 12px;
+        height: 36px;
+      }
+      .tabs {
+        display: inline-flex;
+        border: 2px solid var(--ink);
+      }
+      .tabs button {
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 900;
+        padding: 5px 12px;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .tabs button.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border: 2px solid var(--ink);
+        padding: 0 14px;
+        height: 34px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        flex: none;
+      }
+      .chip.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .chip.sunny {
+        background: var(--sunny);
+        font-weight: 900;
+      }
+
+      /* ---------- cards ---------- */
+      .card {
+        background: #fff;
+        border: 4px solid var(--ink);
+        position: relative;
+      }
+      .sh-mint {
+        box-shadow: 8px 8px 0 var(--mint);
+      }
+      .sh-coral {
+        box-shadow: 8px 8px 0 var(--coral);
+      }
+      .sh-sunny {
+        box-shadow: 8px 8px 0 var(--sunny);
+      }
+      .sh-sea {
+        box-shadow: 8px 8px 0 var(--sea);
+      }
+      .sh6 {
+        box-shadow: 6px 6px 0 var(--coral);
+      }
+      .sh6m {
+        box-shadow: 6px 6px 0 var(--mint);
+      }
+      .sh6s {
+        box-shadow: 6px 6px 0 var(--sunny);
+      }
+      .card h3 {
+        font-size: 15px;
+        font-weight: 900;
+      }
+      .cardhead {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .cardhead .sp {
+        margin-left: auto;
+      }
+      .mono {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---------- home ---------- */
+      .hero {
+        height: 220px;
+        flex: none;
+        background: var(--coral);
+        border: 4px solid var(--ink);
+        box-shadow: 8px 8px 0 var(--mint);
+        transform: rotate(-1deg);
+        padding: 28px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .hero-l {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .tags {
+        display: flex;
+        gap: 8px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 2px solid var(--ink);
+        background: #fff;
+        padding: 4px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        flex: none;
+      }
+      .tag.ink {
+        background: var(--ink);
+        color: #fff;
+        letter-spacing: 0.4px;
+      }
+      .tag.mint {
+        background: var(--mint);
+      }
+      .tag.sunny {
+        background: var(--sunny);
+      }
+      .tag.coral {
+        background: var(--coral);
+        color: #fff;
+      }
+      .tag.sea {
+        background: var(--sea);
+      }
+      .tag.peach {
+        background: var(--peach);
+      }
+      .tag.dotmark::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        background: var(--mint);
+        border: 2px solid var(--ink);
+        display: block;
+      }
+      .hero h2 {
+        font-size: 40px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -1.4px;
+      }
+      .hero .meta {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .chips {
+        display: flex;
+        gap: 10px;
+      }
+      .chips span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border: 2px solid var(--ink);
+        padding: 4px 9px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .chips svg {
+        width: 11px;
+        height: 11px;
+      }
+      .hero-r {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+      }
+      .hero-r em {
+        font-size: 12px;
+        font-weight: 900;
+        font-style: normal;
+      }
+      .switch {
+        width: 132px;
+        height: 66px;
+        background: var(--mint);
+        border: 4px solid var(--ink);
+        box-shadow: 5px 5px 0 var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 5px;
+      }
+      .switch b {
+        width: 48px;
+        height: 48px;
+        background: #fff;
+        border: 4px solid var(--ink);
+        display: block;
+      }
+      .switch.off {
+        background: #fff;
+        justify-content: flex-start;
+      }
+      .switch.sm {
+        width: 46px;
+        height: 26px;
+        padding: 0 3px;
+        box-shadow: none;
+      }
+      .switch.sm b {
+        width: 16px;
+        height: 16px;
+        border: 0;
+        background: var(--ink);
+      }
+
+      .stats {
+        display: flex;
+        gap: 20px;
+        height: 108px;
+        flex: none;
+      }
+      .stat {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+      }
+      .stat .k {
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .stat .v {
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -1px;
+      }
+      .stat .ib {
+        width: 36px;
+        height: 36px;
+        border: 2px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .stat .ib svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .split {
+        display: flex;
+        gap: 20px;
+        flex: 1;
+        min-height: 0;
+      }
+      .chart {
+        flex: 1;
+        min-width: 0;
+        box-shadow: 8px 8px 0 var(--coral);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .chart h3 {
+        font-size: 18px;
+        font-weight: 900;
+        letter-spacing: -0.2px;
+      }
+      .legend {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border: 2px solid var(--ink);
+        display: block;
+      }
+      .plot {
+        width: 100%;
+        height: 210px;
+        display: block;
+      }
+      .axis {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .rail {
+        width: 340px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .modecard {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 12px;
+        height: 158px;
+      }
+      .modes {
+        display: flex;
+        gap: 8px;
+      }
+      .modes button {
+        flex: 1;
+        height: 42px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+        border: 3px solid var(--ink);
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .modes button.on {
+        background: var(--coral);
+        color: #fff;
+        font-weight: 900;
+      }
+      .cap {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .ipcard {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: 158px;
+      }
+      .ipcard .ip {
+        font-size: 23px;
+        font-weight: 900;
+        letter-spacing: -0.8px;
+      }
+      .ipcard .meta {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .badges {
+        display: flex;
+        gap: 8px;
+      }
+
+      /* ---------- proxy groups ---------- */
+      .toolbar {
+        height: 48px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .cols {
+        display: flex;
+        gap: 24px;
+        flex: 1;
+        min-height: 0;
+      }
+      .col {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .group {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: none;
+      }
+      .gh {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .gh h3 {
+        font-size: 18px;
+        font-weight: 900;
+        letter-spacing: -0.3px;
+      }
+      .gh .sp {
+        margin-left: auto;
+      }
+      .gh .cnt {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .strat {
+        background: var(--sunny);
+        border: 2px solid var(--ink);
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .strat.sea {
+        background: var(--sea);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .node {
+        height: 46px;
+        border: 3px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: 700;
+        background: #fff;
+      }
+      .node.on {
+        background: var(--coral);
+        border: 4px solid var(--ink);
+        box-shadow: 4px 4px 0 var(--sunny);
+        color: #fff;
+        font-weight: 900;
+      }
+      .node.on .lat {
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--ink);
+      }
+      .lat {
+        border: 2px solid var(--ink);
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 900;
+        background: var(--mint);
+      }
+      .lat.sunny {
+        background: var(--sunny);
+      }
+      .lat.peach {
+        background: var(--peach);
+      }
+      .lat.white {
+        background: #fff;
+      }
+      .gfoot {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .gfoot .sp {
+        margin-left: auto;
+        font-weight: 900;
+      }
+      .rules {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex: 1;
+      }
+      .rules .lbl {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .rules .lbl b {
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .rules .lbl span {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.8px;
+      }
+      .rulelist {
+        flex: 1;
+        display: flex;
+        gap: 12px;
+      }
+      .rulelist div {
+        flex: 1;
+        border: 2px solid var(--ink);
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .rulelist b {
+        font-size: 9px;
+        font-weight: 900;
+      }
+      .rulelist span {
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      /* ---------- tables ---------- */
+      .data {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 8px 8px 0 var(--sunny);
+      }
+      .data.mint {
+        box-shadow: 8px 8px 0 var(--mint);
+      }
+      .thead {
+        height: 46px;
+        flex: none;
+        background: var(--ink);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.6px;
+      }
+      .trow {
+        height: 59px;
+        flex: none;
+        border-bottom: 2px solid var(--ink);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .trow.hl {
+        background: var(--sunny);
+        border-width: 3px;
+      }
+      .trow.ink {
+        background: var(--ink);
+        color: #fff;
+        border: 0;
+      }
+      .trow.ink .pill {
+        color: var(--ink);
+      }
+      .trow.ink .pill.white {
+        background: #fff;
+      }
+      .tfoot {
+        margin-top: auto;
+        height: 56px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .tfoot .sp {
+        margin-left: auto;
+        font-weight: 900;
+      }
+      .c-h {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .w150 {
+        width: 150px;
+        flex: none;
+      }
+      .w190 {
+        width: 190px;
+        flex: none;
+      }
+      .w180 {
+        width: 180px;
+        flex: none;
+      }
+      .w140 {
+        width: 140px;
+        flex: none;
+      }
+      .w110 {
+        width: 110px;
+        flex: none;
+      }
+      .w100 {
+        width: 100px;
+        flex: none;
+      }
+      .w90 {
+        width: 90px;
+        flex: none;
+      }
+      .w70 {
+        width: 70px;
+        flex: none;
+      }
+      .w24 {
+        width: 24px;
+        flex: none;
+      }
+      .r {
+        text-align: right;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border: 2px solid var(--ink);
+        padding: 3px 9px;
+        font-size: 10px;
+        font-weight: 900;
+        background: var(--mint);
+      }
+      .pill.white {
+        background: #fff;
+      }
+      .pill.coral {
+        background: var(--coral);
+        color: #fff;
+      }
+      .lvl {
+        display: inline-flex;
+        border: 2px solid var(--ink);
+        padding: 2px 7px;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.4px;
+        background: var(--mint);
+      }
+      .lvl.white {
+        background: #fff;
+      }
+      .lvl.sunny {
+        background: var(--sunny);
+      }
+      .lvl.coral {
+        background: var(--coral);
+        color: #fff;
+      }
+      /* keep short labels on one line inside flex rows */
+      .pill,
+      .lvl,
+      .lat,
+      .strat,
+      .val,
+      .chips span,
+      .badge,
+      .btn,
+      .ibtn {
+        white-space: nowrap;
+        flex: none;
+      }
+      .badge {
+        background: var(--ink);
+        color: #fff;
+        padding: 4px 10px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+
+      /* ---------- profiles ---------- */
+      .subgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        flex: none;
+      }
+      .subcard {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        height: 260px;
+      }
+      .subcard h3 {
+        font-size: 20px;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+      }
+      .subcard .url {
+        font-size: 9px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .usage {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .usage .l {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .usage .l .sp {
+        margin-left: auto;
+        font-weight: 900;
+      }
+      .track {
+        height: 14px;
+        border: 2px solid var(--ink);
+        padding: 2px;
+        display: flex;
+      }
+      .track i {
+        display: block;
+        height: 100%;
+        background: var(--coral);
+      }
+      .meta3 {
+        display: flex;
+        gap: 12px;
+      }
+      .meta3 div {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .meta3 b {
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .meta3 span {
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .acts {
+        display: flex;
+        gap: 10px;
+        margin-top: auto;
+      }
+      .acts button {
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 900;
+        height: 36px;
+        padding: 0 14px;
+        border: 2px solid var(--ink);
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .acts button.pri {
+        background: var(--coral);
+        color: #fff;
+      }
+      .acts button.danger {
+        border-color: var(--coral);
+      }
+      .localcard {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        height: 186px;
+        flex: none;
+      }
+      .patches {
+        display: flex;
+        gap: 12px;
+      }
+      .patches div {
+        flex: 1;
+        border: 2px solid var(--ink);
+        padding: 6px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .patches b {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.6px;
+      }
+      .patches span {
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .autocard {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        justify-content: space-between;
+        flex: 1;
+      }
+      .setrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .setrow .sp {
+        margin-left: auto;
+      }
+
+      /* ---------- settings ---------- */
+      .grid4 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 20px;
+        flex: 1;
+        min-height: 0;
+      }
+      .setcard {
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .setcard .hd {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: none;
+      }
+      .setcard .hd .ib {
+        width: 26px;
+        height: 26px;
+        border: 2px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .setcard .hd .ib svg {
+        width: 13px;
+        height: 13px;
+      }
+      .setcard .hd h3 {
+        font-size: 15px;
+        font-weight: 900;
+      }
+      .setcard .hd .sp {
+        margin-left: auto;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+      .setcard .rows {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+      .setcard .rows .setrow {
+        flex: 1;
+      }
+      .val {
+        border: 2px solid var(--ink);
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .swatches {
+        display: flex;
+        gap: 10px;
+      }
+      .swatches i {
+        width: 26px;
+        height: 26px;
+        border: 2px solid var(--ink);
+        display: block;
+      }
+      .swatches i.on {
+        border-width: 3px;
+        box-shadow: 3px 3px 0 var(--ink);
+      }
+
+      /* ---------- tray ---------- */
+      .tray {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        justify-content: space-between;
+        flex: 1;
+        min-height: 0;
+      }
+      .tray .hero {
+        height: 88px;
+        padding: 16px;
+        transform: rotate(-1deg);
+        box-shadow: 6px 6px 0 var(--mint);
+        gap: 12px;
+      }
+      .tray .hero h2 {
+        font-size: 24px;
+        letter-spacing: -1px;
+        line-height: 1.1;
+      }
+      .tray .hero .meta {
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .tray .switch {
+        width: 64px;
+        height: 34px;
+        padding: 0 4px;
+      }
+      .tray .switch b {
+        width: 22px;
+        height: 22px;
+        border: 0;
+        background: var(--ink);
+      }
+      .tray .modes button {
+        height: 40px;
+        font-size: 12px;
+        border-width: 3px;
+      }
+      .tray .nodelist {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .tray .node {
+        height: 44px;
+        border-width: 2px;
+        font-size: 12px;
+      }
+      .tray .node.on {
+        background: var(--sunny);
+        border: 3px solid var(--ink);
+        color: var(--ink);
+        box-shadow: none;
+      }
+      .tray .node.on .lat {
+        background: transparent;
+        border: 0;
+        padding: 0;
+      }
+      .tray .flow {
+        display: flex;
+        gap: 10px;
+      }
+      .tray .flow div {
+        flex: 1;
+        border: 2px solid var(--ink);
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .tray .flow b {
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .tray .flow span {
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.15;
+      }
+      .tray .cta {
+        height: 46px;
+        background: #fff;
+        border: 4px solid var(--ink);
+        box-shadow: 5px 5px 0 var(--sunny);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      /* ---------- spec board ---------- */
+      .spec {
+        width: 1000px;
+        min-height: 504px;
+        border: 4px solid var(--ink);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        background: #fff;
+      }
+      .spec .hd {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .spec .hd h2 {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: -0.6px;
+      }
+      .spec .hd p {
+        font-size: 10px;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .spec .badge {
+        background: var(--ink);
+        color: #fff;
+        padding: 4px 10px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+      .swrow {
+        display: flex;
+        gap: 12px;
+      }
+      .swrow div {
+        width: 56px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .swrow i {
+        width: 56px;
+        height: 56px;
+        border: 2px solid var(--ink);
+        display: block;
+      }
+      .swrow em {
+        font-size: 8px;
+        font-weight: 700;
+        line-height: 11px;
+        font-style: normal;
+      }
+      .staterow {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .staterow .box {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .staterow .box em {
+        font-size: 9px;
+        font-weight: 700;
+        font-style: normal;
+      }
+      .tagrow {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .typorow {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .typorow .d {
+        font-size: 40px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -1.2px;
+      }
+      .typorow .h {
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1.16;
+        letter-spacing: -0.6px;
+      }
+      .typorow .b {
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      /* ---------- states ---------- */
+      .stategrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 20px;
+        flex: 1;
+        min-height: 0;
+      }
+      .state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 28px;
+        text-align: center;
+      }
+      .zoomctl {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        z-index: 99;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border: 4px solid var(--ink);
+        box-shadow: 6px 6px 0 var(--coral);
+        padding: 6px 10px;
+      }
+      .zoomctl b {
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.4px;
+      }
+      .zoomctl button {
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 900;
+        border: 2px solid var(--ink);
+        background: #fff;
+        padding: 4px 8px;
+        cursor: pointer;
+        color: var(--ink);
+      }
+      .zoomctl button.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .state .ibox {
+        width: 56px;
+        height: 56px;
+        border: 4px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .state .ibox svg {
+        width: 26px;
+        height: 26px;
+      }
+      .state h3 {
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: -0.6px;
+      }
+      .state p {
+        font-size: 11px;
+        font-weight: 700;
+        max-width: 470px;
+        line-height: 18px;
+      }
+      .skel {
+        height: 14px;
+        border: 2px solid var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- icon sprite: line icons only, no emoji, no glyphs -->
+    <svg style="display: none" xmlns="http://www.w3.org/2000/svg">
+      <symbol id="i-home" viewBox="0 0 24 24">
+        <path
+          d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2.4" />
+        <path
+          d="M3.6 12h16.8M12 3.6c3 2.4 3 14.4 0 16.8M12 3.6c-3 2.4-3 14.4 0 16.8"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+        />
+      </symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24">
+        <path
+          d="M12 3l9 4.5-9 4.5L3 7.5 12 3zM3 12.5l9 4.5 9-4.5M3 17l9 4.5 9-4.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-switch" viewBox="0 0 24 24">
+        <path
+          d="M3.5 8h13l-3.4-3.4M20.5 16h-13l3.4 3.4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-fork" viewBox="0 0 24 24">
+        <path
+          d="M6 3v4.5c0 3 2 5 5 5h7M14.5 9.5l3.5 3-3.5 3M6 3v18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path
+          d="M4 6h16M4 12h16M4 18h10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2.2" />
+        <path
+          d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24">
+        <path
+          d="M13.5 2L4.5 13.5h5.5L9 22l9.5-12h-5.5L13.5 2z"
+          fill="currentColor"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-down" viewBox="0 0 24 24">
+        <path
+          d="M12 4v15M12 19l-6-6M12 19l6-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-up" viewBox="0 0 24 24">
+        <path
+          d="M12 20V5M12 5l-6 6M12 5l6 6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-link" viewBox="0 0 24 24">
+        <path
+          d="M9.5 14.5l5-5M11 6.8l1.6-1.6a3.9 3.9 0 1 1 5.5 5.5l-1.6 1.6M13 17.2l-1.6 1.6a3.9 3.9 0 1 1-5.5-5.5l1.6-1.6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path
+          d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1M20.5 3.5v5.2h-5.2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6" />
+        <path
+          d="M15.5 15.5L21 21"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-sort" viewBox="0 0 24 24">
+        <path
+          d="M4 6h10M4 12h7M4 18h4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linecap="round"
+        />
+        <path
+          d="M18 4v16M18 20l-3.5-3.5M18 20l3.5-3.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24">
+        <path
+          d="M3 5h18l-7 8v6l-4 2v-8L3 5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path
+          d="M5 5l14 14M19 5L5 19"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24">
+        <path
+          d="M4 12h16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="2.2" fill="currentColor" />
+        <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+        <circle cx="19" cy="12" r="2.2" fill="currentColor" />
+      </symbol>
+      <symbol id="i-plane" viewBox="0 0 24 24">
+        <path
+          d="M2.5 12.5L21 4l-8.4 17.6-2.6-8.1-7.5-1z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path
+          d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M9 12l2.2 2.2L15.5 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2" />
+        <path
+          d="M12 7v5.5l3.5 2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24">
+        <path
+          d="M3 6h6l2 2h10v12H3V6z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-warn" viewBox="0 0 24 24">
+        <path
+          d="M12 3l9 16H3l9-16z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M12 9v4.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        />
+        <circle cx="12" cy="16.4" r="1.2" fill="currentColor" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path
+          d="M12 4v16M4 12h16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24">
+        <path
+          d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linejoin="round"
+        />
+        <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="2.4" />
+      </symbol>
+      <symbol id="i-star" viewBox="0 0 24 24">
+        <path
+          d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 16.9l-5.3 2.7 1.1-5.8L3.5 9.7l5.9-.8L12 3.5z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24">
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+        />
+        <path
+          d="M8 20h8M12 16v4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-rows" viewBox="0 0 24 24">
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+        />
+        <rect
+          x="3"
+          y="14"
+          width="18"
+          height="6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+        />
+      </symbol>
+      <symbol id="i-lang" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4" />
+        <path d="M12 4v16" fill="none" stroke="currentColor" stroke-width="2.4" />
+      </symbol>
+    </svg>
+
+    <!-- ============================ masthead ============================ -->
+    <header class="masthead">
+      <div>
+        <h1>GoClash</h1>
+        <p>
+          Clash Meta 桌面客户端 · 俏皮野兽派（Playful Neo-Brutalist）<br />
+          4px 纯黑描边 · 零圆角 · 零模糊硬阴影 · -2°~3° 旋转 · 同屏最多三种强调色<br />
+          文中数据均为演示占位，结构对应 Ardot 设计稿的 10 个画板。
+        </p>
+      </div>
+      <div class="sw">
+        <div><span style="background: #ff6b6b"></span><em>CORAL</em></div>
+        <div><span style="background: #4ecdc4"></span><em>MINT</em></div>
+        <div><span style="background: #ffe66d"></span><em>SUNNY</em></div>
+        <div><span style="background: #95e1d3"></span><em>SEAFOAM</em></div>
+        <div><span style="background: #f38181"></span><em>PEACH</em></div>
+      </div>
+    </header>
+
+    <div class="board">
+      <!-- ======================= ROW 1 ======================= -->
+      <div class="row">
+        <!-- ---------- 01 HOME ---------- -->
+        <section class="screen">
+          <div class="label">01 · 首页&nbsp;&nbsp; HOME</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>首页</h1>
+                    <div class="sub">规则模式 · 系统代理已开启 · TUN 未启用</div>
+                  </div>
+                  <div class="ph-r">
+                    <button class="btn ghost">轻量模式</button>
+                    <button class="ibtn">
+                      <svg class="i"><use href="#i-gear" /></svg>
+                    </button>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-bolt" /></svg>立即测速
+                    </button>
+                  </div>
+                </div>
+
+                <div class="hero">
+                  <div class="hero-l">
+                    <div class="tags">
+                      <span class="tag dotmark">已连接</span>
+                      <span class="tag ink">系统代理 ON</span>
+                    </div>
+                    <h2>香港 · IPLC 02</h2>
+                    <div class="meta">规则模式 · 延迟 38ms · 出口 203.0.113.42</div>
+                    <div class="chips">
+                      <span
+                        ><svg class="i"><use href="#i-down" /></svg>88.2 MB/s</span
+                      >
+                      <span
+                        ><svg class="i"><use href="#i-up" /></svg>12.4 MB/s</span
+                      >
+                    </div>
+                  </div>
+                  <div class="hero-r">
+                    <div class="switch"><b></b></div>
+                    <em>系统代理</em>
+                  </div>
+                </div>
+
+                <div class="stats">
+                  <div class="stat card sh6">
+                    <div>
+                      <div class="k">下载速度 · MB/s</div>
+                      <div class="v mono">88.2</div>
+                    </div>
+                    <div class="ib" style="background: var(--sunny)">
+                      <svg class="i"><use href="#i-down" /></svg>
+                    </div>
+                  </div>
+                  <div class="stat card sh6m">
+                    <div>
+                      <div class="k">上传速度 · MB/s</div>
+                      <div class="v mono">12.4</div>
+                    </div>
+                    <div class="ib" style="background: var(--mint)">
+                      <svg class="i"><use href="#i-up" /></svg>
+                    </div>
+                  </div>
+                  <div class="stat card sh6s">
+                    <div>
+                      <div class="k">活动连接 · 个</div>
+                      <div class="v mono">42</div>
+                    </div>
+                    <div class="ib" style="background: var(--coral)">
+                      <svg class="i"><use href="#i-link" /></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="split">
+                  <div class="card chart">
+                    <div class="cardhead">
+                      <h3>流量统计</h3>
+                      <div style="margin-left: auto; display: flex; align-items: center; gap: 14px">
+                        <span class="legend"><i style="background: var(--coral)"></i>下载</span>
+                        <span class="legend"><i style="background: var(--mint)"></i>上传</span>
+                        <span class="tabs"
+                          ><button class="on">1m</button><button>5m</button
+                          ><button>1h</button></span
+                        >
+                      </div>
+                    </div>
+                    <svg
+                      class="plot"
+                      viewBox="0 0 732 210"
+                      preserveAspectRatio="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M0 36H732M0 71H732M0 107H732M0 142H732"
+                        stroke="#000"
+                        stroke-opacity=".12"
+                        stroke-width="2"
+                      />
+                      <path
+                        d="M0 158L61 142L122 150L183 100L244 117L305 78L366 91L427 55L488 69L549 41L610 53L671 21L732 34L732 208L0 208Z"
+                        fill="#ff6b6b"
+                        stroke="#000"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M0 183L61 176L122 180L183 164L244 171L305 155L366 160L427 148L488 153L549 142L610 148L671 135L732 141"
+                        stroke="#000"
+                        stroke-width="7"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <path
+                        d="M0 183L61 176L122 180L183 164L244 171L305 155L366 160L427 148L488 153L549 142L610 148L671 135L732 141"
+                        stroke="#4ecdc4"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                        fill="none"
+                      />
+                      <rect
+                        x="725"
+                        y="27"
+                        width="14"
+                        height="14"
+                        fill="#000"
+                        stroke="#fff"
+                        stroke-width="2"
+                      />
+                    </svg>
+                    <div class="axis">
+                      <span>-60s</span><span>-40s</span><span>-20s</span><span>现在</span>
+                    </div>
+                  </div>
+
+                  <div class="rail">
+                    <div class="card modecard sh-sunny">
+                      <div class="cardhead">
+                        <h3>代理模式</h3>
+                        <span class="sp"></span
+                        ><span style="font-size: 10px; font-weight: 900; letter-spacing: 1px"
+                          >RULE</span
+                        >
+                      </div>
+                      <div class="modes">
+                        <button class="on">规则</button><button>全局</button><button>直连</button>
+                      </div>
+                      <div class="cap">按规则集自动分流，命中即走对应策略组</div>
+                    </div>
+                    <div class="card ipcard sh-mint">
+                      <div class="cardhead">
+                        <h3>出口 IP</h3>
+                        <span class="sp"></span
+                        ><button
+                          class="ibtn"
+                          style="width: 24px; height: 24px; border-width: 2px; box-shadow: none"
+                        >
+                          <svg class="i" style="width: 12px; height: 12px">
+                            <use href="#i-refresh" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="ip mono">203.0.113.42</div>
+                      <div class="meta">HK · HKG · AS4760 CLOUDFLARE</div>
+                      <div class="badges">
+                        <span class="tag sea">香港</span><span class="tag sunny">原生 IP</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 02 PROXIES ---------- -->
+        <section class="screen">
+          <div class="label">02 · 代理&nbsp;&nbsp; PROXIES</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>代理</h1>
+                    <div class="sub">8 个策略组 · 126 个节点 · 延迟检测 300s</div>
+                  </div>
+                  <div class="ph-r">
+                    <div class="input mid">
+                      <svg class="i"><use href="#i-search" /></svg>搜索节点…
+                    </div>
+                    <button class="ibtn">
+                      <svg class="i"><use href="#i-sort" /></svg>
+                    </button>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-bolt" /></svg>全部测速
+                    </button>
+                  </div>
+                </div>
+
+                <div class="toolbar">
+                  <div class="seg">
+                    <button class="on">规则</button><button>全局</button><button>直连</button>
+                  </div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 8px">
+                    <span class="chip sunny">延迟</span>
+                    <span class="chip">名称</span>
+                    <button
+                      class="ibtn"
+                      style="width: 36px; height: 36px; border-width: 2px; box-shadow: none"
+                    >
+                      <svg class="i" style="width: 14px; height: 14px">
+                        <use href="#i-filter" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="cols">
+                  <div class="col">
+                    <div class="card group sh-mint">
+                      <div class="gh">
+                        <svg class="i" style="width: 22px; height: 22px">
+                          <use href="#i-plane" />
+                        </svg>
+                        <h3>节点选择</h3>
+                        <span class="strat">url-test</span> <span class="sp"></span
+                        ><span class="cnt">6 / 128</span>
+                        <button
+                          class="ibtn"
+                          style="width: 26px; height: 26px; border-width: 2px; box-shadow: none"
+                        >
+                          <svg class="i" style="width: 12px; height: 12px">
+                            <use href="#i-refresh" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="grid2">
+                        <div class="node on">
+                          香港 · IPLC 02<span class="lat white">38 ms</span>
+                        </div>
+                        <div class="node">日本 · 东京 01<span class="lat">52 ms</span></div>
+                        <div class="node">新加坡 · SG 03<span class="lat sunny">118 ms</span></div>
+                        <div class="node">台湾 · 台北 01<span class="lat">26 ms</span></div>
+                        <div class="node">
+                          美国 · 洛杉矶 02<span class="lat peach">210 ms</span>
+                        </div>
+                        <div class="node">韩国 · 首尔 01<span class="lat sunny">64 ms</span></div>
+                      </div>
+                      <div class="gfoot">
+                        自动选择延迟最低 · 2 分钟前测速<span class="sp">展开 128 个节点</span>
+                      </div>
+                    </div>
+
+                    <div class="card group sh-coral">
+                      <div class="gh">
+                        <svg class="i" style="width: 22px; height: 22px">
+                          <use href="#i-bolt" />
+                        </svg>
+                        <h3>自动选择</h3>
+                        <span class="strat sea">fallback</span> <span class="sp"></span
+                        ><span class="cnt">12 / 34</span>
+                        <button
+                          class="ibtn"
+                          style="width: 26px; height: 26px; border-width: 2px; box-shadow: none"
+                        >
+                          <svg class="i" style="width: 12px; height: 12px">
+                            <use href="#i-refresh" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="grid2">
+                        <div class="node">香港 · IPLC 01<span class="lat">42 ms</span></div>
+                        <div class="node">日本 · 东京 02<span class="lat">58 ms</span></div>
+                        <div class="node">台湾 · 台北 02<span class="lat">31 ms</span></div>
+                        <div class="node">新加坡 · SG 01<span class="lat sunny">121 ms</span></div>
+                        <div class="node">
+                          美国 · 洛杉矶 01<span class="lat peach">198 ms</span>
+                        </div>
+                        <div class="node">英国 · 伦敦 01<span class="lat peach">156 ms</span></div>
+                      </div>
+                    </div>
+
+                    <div class="card rules sh-sunny">
+                      <div class="lbl"><b>最近命中</b><span>RULE · LIVE</span></div>
+                      <div class="rulelist">
+                        <div><b>DOMAIN-SUFFIX,google.com</b><span>命中 · 节点选择</span></div>
+                        <div><b>GEOIP,CN</b><span>命中 · DIRECT</span></div>
+                        <div><b>RULE-SET,tracker</b><span>命中 · REJECT</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rail">
+                    <div
+                      class="card sh-mint"
+                      style="
+                        background: var(--coral);
+                        transform: rotate(-1deg);
+                        padding: 20px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                        height: 158px;
+                      "
+                    >
+                      <span class="tag" style="align-self: flex-start">当前出口</span>
+                      <div
+                        style="
+                          font-size: 26px;
+                          font-weight: 900;
+                          letter-spacing: -0.8px;
+                          line-height: 1.2;
+                        "
+                      >
+                        香港 · IPLC 02
+                      </div>
+                      <div style="font-size: 11px; font-weight: 900">
+                        38 ms&nbsp;&nbsp;·&nbsp;&nbsp;203.0.113.42
+                      </div>
+                    </div>
+
+                    <div
+                      class="card sh-sunny"
+                      style="
+                        padding: 20px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 12px;
+                        height: 184px;
+                      "
+                    >
+                      <div class="cardhead">
+                        <h3>代理提供者</h3>
+                        <span class="sp"></span
+                        ><span style="font-size: 10px; font-weight: 900">全部更新</span>
+                      </div>
+                      <div
+                        style="
+                          border: 2px solid var(--ink);
+                          height: 48px;
+                          display: flex;
+                          align-items: center;
+                          padding: 0 8px 0 10px;
+                          gap: 8px;
+                        "
+                      >
+                        <div style="display: flex; flex-direction: column; gap: 1px">
+                          <b style="font-size: 12px; font-weight: 900">机场 A · 主订阅</b>
+                          <span style="font-size: 9px; font-weight: 700"
+                            >126 节点 · 3 小时前更新</span
+                          >
+                        </div>
+                        <button
+                          class="ibtn"
+                          style="
+                            width: 26px;
+                            height: 26px;
+                            border-width: 2px;
+                            box-shadow: none;
+                            margin-left: auto;
+                            background: var(--sunny);
+                          "
+                        >
+                          <svg class="i" style="width: 10px; height: 10px">
+                            <use href="#i-refresh" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div
+                        style="
+                          border: 2px solid var(--ink);
+                          height: 48px;
+                          display: flex;
+                          align-items: center;
+                          padding: 0 8px 0 10px;
+                          gap: 8px;
+                        "
+                      >
+                        <div style="display: flex; flex-direction: column; gap: 1px">
+                          <b style="font-size: 12px; font-weight: 900">机场 B · 备份</b>
+                          <span style="font-size: 9px; font-weight: 700">34 节点 · 昨天更新</span>
+                        </div>
+                        <button
+                          class="ibtn"
+                          style="
+                            width: 26px;
+                            height: 26px;
+                            border-width: 2px;
+                            box-shadow: none;
+                            margin-left: auto;
+                          "
+                        >
+                          <svg class="i" style="width: 10px; height: 10px">
+                            <use href="#i-refresh" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      class="card sh-sea"
+                      style="
+                        padding: 20px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                        height: 136px;
+                      "
+                    >
+                      <div class="cardhead"><h3>订阅流量</h3></div>
+                      <div style="font-size: 11px; font-weight: 900">
+                        128 GB&nbsp;&nbsp;/&nbsp;&nbsp;200 GB
+                      </div>
+                      <div class="track"><i style="width: 62%"></i></div>
+                      <div style="font-size: 10px; font-weight: 700">
+                        已用 62% · 2027-01-12 到期
+                      </div>
+                    </div>
+
+                    <div
+                      class="card"
+                      style="
+                        padding: 0 20px;
+                        height: 96px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                      "
+                    >
+                      <div style="display: flex; flex-direction: column; gap: 2px">
+                        <b style="font-size: 15px; font-weight: 900">链式代理</b>
+                        <span style="font-size: 10px; font-weight: 700"
+                          >双跳加密 · 速度会明显下降</span
+                        >
+                      </div>
+                      <div class="switch sm off" style="margin-left: auto"><b></b></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======================= ROW 2 ======================= -->
+      <div class="row">
+        <!-- ---------- 03 TRAY ---------- -->
+        <section class="screen">
+          <div class="label">03 · 托盘快切&nbsp;&nbsp; TRAY POPUP</div>
+          <div class="win sm">
+            <div class="tb">
+              <i class="dot c"></i>
+              <div class="appname" style="font-size: 13px">GoClash</div>
+              <div style="margin-left: auto; display: flex; gap: 10px">
+                <svg class="i" style="width: 12px; height: 12px"><use href="#i-minus" /></svg>
+                <svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg>
+              </div>
+            </div>
+            <div class="tray">
+              <div class="hero">
+                <div class="hero-l" style="gap: 4px">
+                  <h2>已连接</h2>
+                  <div class="meta">香港 · IPLC 02 · 38 ms</div>
+                </div>
+                <div class="switch"><b></b></div>
+              </div>
+
+              <div class="modes">
+                <button class="on">规则</button><button>全局</button><button>直连</button>
+              </div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  font-size: 10px;
+                  font-weight: 900;
+                  letter-spacing: 0.6px;
+                "
+              >
+                节点<span style="margin-left: auto; font-weight: 700; letter-spacing: 0"
+                  >按延迟排序</span
+                >
+              </div>
+
+              <div class="nodelist">
+                <div class="node on">香港 · IPLC 02<span class="lat">38 ms</span></div>
+                <div class="node">日本 · 东京 01<span class="lat white">52 ms</span></div>
+                <div class="node">新加坡 · SG 03<span class="lat white">118 ms</span></div>
+                <div class="node">台湾 · 台北 01<span class="lat white">26 ms</span></div>
+              </div>
+
+              <div class="flow">
+                <div><b>下载 · MB/s</b><span class="mono">88.2</span></div>
+                <div><b>上传 · MB/s</b><span class="mono">12.4</span></div>
+              </div>
+
+              <div class="cta">
+                <svg class="i" style="width: 13px; height: 13px"><use href="#i-monitor" /></svg
+                >打开主界面
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 04 SPEC ---------- -->
+        <section class="screen">
+          <div class="label">04 · 组件与状态&nbsp;&nbsp; COMPONENTS</div>
+          <div class="spec">
+            <div class="hd">
+              <div>
+                <h2>组件与状态</h2>
+                <p>4px 描边 · 零圆角 · 硬阴影 · -2° 到 3° 旋转 · 无渐变</p>
+              </div>
+              <span class="badge">PLAYFUL BRUTALIST</span>
+            </div>
+
+            <div class="swrow">
+              <div>
+                <i style="background: #000"></i><em>Ink<br />#000000</em>
+              </div>
+              <div>
+                <i style="background: #ff6b6b"></i><em>Coral<br />#FF6B6B</em>
+              </div>
+              <div>
+                <i style="background: #4ecdc4"></i><em>Mint<br />#4ECDC4</em>
+              </div>
+              <div>
+                <i style="background: #ffe66d"></i><em>Sunny<br />#FFE66D</em>
+              </div>
+              <div>
+                <i style="background: #95e1d3"></i><em>Seafoam<br />#95E1D3</em>
+              </div>
+              <div>
+                <i style="background: #f38181"></i><em>Peach<br />#F38181</em>
+              </div>
+            </div>
+
+            <div class="staterow">
+              <div class="box">
+                <button class="btn" style="height: 44px">开启代理</button>
+                <em>default · -2° · 6px 薄荷影</em>
+              </div>
+              <div class="box">
+                <button
+                  class="btn"
+                  style="height: 44px; transform: rotate(3deg); box-shadow: 8px 8px 0 var(--sunny)"
+                >
+                  开启代理
+                </button>
+                <em>hover · 3° · 8px 阳光影</em>
+              </div>
+              <div class="box">
+                <button class="btn" style="height: 44px; transform: none; box-shadow: none">
+                  开启代理
+                </button>
+                <em>active · 0° · 位移 6px · 无影</em>
+              </div>
+            </div>
+
+            <div class="staterow">
+              <div class="box">
+                <div class="input narrow" style="box-shadow: none">粘贴订阅链接…</div>
+                <em>default · 4px 黑边</em>
+              </div>
+              <div class="box">
+                <div class="input narrow" style="box-shadow: 4px 4px 0 var(--mint)">
+                  https://sub.example.com
+                </div>
+                <em>focus · 4px 薄荷影</em>
+              </div>
+              <div class="box">
+                <div
+                  class="input narrow"
+                  style="border-color: var(--coral); box-shadow: 4px 4px 0 var(--coral)"
+                >
+                  订阅链接格式无效
+                </div>
+                <em>error · 边框与影换珊瑚</em>
+              </div>
+            </div>
+
+            <div class="tagrow">
+              <span class="tag sea"
+                ><svg class="i" style="width: 11px; height: 11px"><use href="#i-pin" /></svg
+                >香港</span
+              >
+              <span class="tag mint"
+                ><svg class="i" style="width: 11px; height: 11px"><use href="#i-bolt" /></svg>38
+                ms</span
+              >
+              <span class="tag sunny"
+                ><svg class="i" style="width: 11px; height: 11px"><use href="#i-layers" /></svg
+                >url-test</span
+              >
+              <span class="tag peach"
+                ><svg class="i" style="width: 11px; height: 11px"><use href="#i-star" /></svg
+                >收藏</span
+              >
+            </div>
+
+            <div class="typorow">
+              <div class="d">连接稳定</div>
+              <div class="h">延迟更低</div>
+              <div class="b">Inter 900 · Noto Sans SC Black · 只用 700 / 900</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======================= ROW 3 ======================= -->
+      <div class="row">
+        <!-- ---------- 05 CONNECTIONS ---------- -->
+        <section class="screen">
+          <div class="label">05 · 连接&nbsp;&nbsp; CONNECTIONS</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>连接</h1>
+                    <div class="sub">
+                      42 条活动连接 · 上行 12.4 MB/s · 下行 88.2 MB/s · 进程嗅探开启
+                    </div>
+                  </div>
+                  <div class="ph-r">
+                    <div class="input wide">
+                      <svg class="i"><use href="#i-search" /></svg>搜索主机或规则…
+                    </div>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-close" /></svg>全部关闭
+                    </button>
+                  </div>
+                </div>
+
+                <div class="toolbar" style="height: 48px">
+                  <div style="display: flex; gap: 10px">
+                    <span class="chip on">全部 42</span><span class="chip">代理 38</span
+                    ><span class="chip">直连 2</span><span class="chip">拦截 2</span>
+                  </div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
+                    <span style="font-size: 10px; font-weight: 900">自动刷新 1s</span>
+                    <div
+                      class="switch"
+                      style="
+                        width: 42px;
+                        height: 24px;
+                        padding: 0 3px;
+                        box-shadow: none;
+                        border-width: 2px;
+                      "
+                    >
+                      <b style="width: 14px; height: 14px; border: 0; background: var(--ink)"></b>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card data">
+                  <div class="thead">
+                    <span class="c-h">主机 / HOST</span><span class="w190">命中规则</span
+                    ><span class="w180">出口节点</span><span class="w140">上下行</span
+                    ><span class="w70">时长</span><span class="w24"></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">www.youtube.com:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX,youtube.com</span
+                    ><span class="w180">香港 · IPLC 02</span
+                    ><span class="w140 mono">1.2 / 8.4 MB</span><span class="w70 mono">02:14</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow hl">
+                    <span class="c-h" style="font-weight: 700">api.github.com:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX,github.com</span
+                    ><span class="w180">日本 · 东京 01</span
+                    ><span class="w140 mono">0.4 / 1.8 MB</span><span class="w70 mono">00:52</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">192.168.1.12:5353</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900">GEOIP,CN</span
+                    ><span class="w180 mono">DIRECT</span><span class="w140 mono">0.0 / 0.2 MB</span
+                    ><span class="w70 mono">12:03</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">cdn.jsdelivr.net:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900">RULE-SET,cdn</span
+                    ><span class="w180">新加坡 · SG 03</span
+                    ><span class="w140 mono">0.8 / 5.1 MB</span><span class="w70 mono">01:31</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">steamcommunity.com:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-KEYWORD,steam</span
+                    ><span class="w180">香港 · IPLC 02</span
+                    ><span class="w140 mono">0.2 / 2.6 MB</span><span class="w70 mono">03:47</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">tracker.example.net:8080</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >RULE-SET,tracker</span
+                    ><span class="w180 mono">REJECT</span><span class="w140 mono">0.0 / 0.0 MB</span
+                    ><span class="w70 mono">00:01</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">fonts.googleapis.com:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX,googleapis.com</span
+                    ><span class="w180">台湾 · 台北 01</span
+                    ><span class="w140 mono">0.1 / 0.6 MB</span><span class="w70 mono">00:18</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">10.0.0.5:7890</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >IP-CIDR,10.0.0.0/8</span
+                    ><span class="w180 mono">DIRECT</span><span class="w140 mono">0.0 / 0.1 MB</span
+                    ><span class="w70 mono">08:22</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="trow">
+                    <span class="c-h" style="font-weight: 700">openai.com:443</span
+                    ><span class="w190" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX,openai.com</span
+                    ><span class="w180">美国 · 洛杉矶 02</span
+                    ><span class="w140 mono">0.9 / 4.3 MB</span><span class="w70 mono">00:44</span
+                    ><span class="w24"
+                      ><svg class="i" style="width: 11px; height: 11px"><use href="#i-close" /></svg
+                    ></span>
+                  </div>
+                  <div class="tfoot">
+                    <span style="font-weight: 700"
+                      >显示 9 / 42 条 · 超过 1 分钟未活动的连接自动隐藏</span
+                    ><span class="sp">已关闭 128 条</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 06 RULES ---------- -->
+        <section class="screen">
+          <div class="label">06 · 规则&nbsp;&nbsp; RULES</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>规则</h1>
+                    <div class="sub">1284 条规则 · 12 个规则集 · 最后更新 3 小时前</div>
+                  </div>
+                  <div class="ph-r">
+                    <div class="input wide">
+                      <svg class="i"><use href="#i-search" /></svg>搜索域名或 IP…
+                    </div>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-refresh" /></svg>更新规则
+                    </button>
+                  </div>
+                </div>
+
+                <div class="toolbar" style="height: 48px">
+                  <div style="display: flex; gap: 10px">
+                    <span class="chip on">全部 1284</span><span class="chip">DOMAIN 620</span
+                    ><span class="chip">IP-CIDR 88</span><span class="chip">GEOIP 24</span
+                    ><span class="chip">RULE-SET 412</span>
+                  </div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
+                    <span style="font-size: 10px; font-weight: 900">按命中排序</span>
+                    <button
+                      class="ibtn"
+                      style="width: 34px; height: 34px; border-width: 2px; box-shadow: none"
+                    >
+                      <svg class="i" style="width: 13px; height: 13px">
+                        <use href="#i-filter" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card data mint">
+                  <div class="thead">
+                    <span class="w150">类型</span><span class="c-h">规则内容</span
+                    ><span class="w190">匹配策略</span><span class="w100 r">命中次数</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX</span
+                    ><span class="c-h">google.com</span
+                    ><span class="w190"><span class="pill">节点选择</span></span
+                    ><span class="w100 r mono">1,284</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX</span
+                    ><span class="c-h">github.com</span
+                    ><span class="w190"><span class="pill">节点选择</span></span
+                    ><span class="w100 r mono">862</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-KEYWORD</span
+                    ><span class="c-h">youtube</span
+                    ><span class="w190"><span class="pill">节点选择</span></span
+                    ><span class="w100 r mono">2,431</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900">IP-CIDR</span
+                    ><span class="c-h">10.0.0.0/8</span
+                    ><span class="w190"><span class="pill white">DIRECT</span></span
+                    ><span class="w100 r mono">41</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900">GEOIP</span
+                    ><span class="c-h">CN</span
+                    ><span class="w190"><span class="pill white">DIRECT</span></span
+                    ><span class="w100 r mono">9,802</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900">RULE-SET</span
+                    ><span class="c-h">reject-ads</span
+                    ><span class="w190"><span class="pill coral">REJECT</span></span
+                    ><span class="w100 r mono">312</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900">RULE-SET</span
+                    ><span class="c-h">proxy-gfw</span
+                    ><span class="w190"><span class="pill">节点选择</span></span
+                    ><span class="w100 r mono">5,140</span>
+                  </div>
+                  <div class="trow">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900"
+                      >DOMAIN-SUFFIX</span
+                    ><span class="c-h">cn</span
+                    ><span class="w190"><span class="pill white">DIRECT</span></span
+                    ><span class="w100 r mono">2,076</span>
+                  </div>
+                  <div class="trow ink">
+                    <span class="w150 mono" style="font-size: 9px; font-weight: 900">MATCH</span
+                    ><span class="c-h">兜底 · 未命中任何规则</span
+                    ><span class="w190"><span class="pill white">节点选择</span></span
+                    ><span class="w100 r mono">640</span>
+                  </div>
+                  <div class="tfoot">
+                    <span style="font-weight: 700"
+                      >显示 9 / 1284 条 · 规则自上而下匹配，命中即停</span
+                    ><span class="sp">最后更新 3 小时前</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======================= ROW 4 ======================= -->
+      <div class="row">
+        <!-- ---------- 07 PROFILES ---------- -->
+        <section class="screen">
+          <div class="label">07 · 订阅&nbsp;&nbsp; PROFILES</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>订阅</h1>
+                    <div class="sub">2 个远程配置 · 1 个本地配置 · 自动更新每 12 小时</div>
+                  </div>
+                  <div class="ph-r">
+                    <button class="btn ghost">从剪贴板导入</button>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-plus" /></svg>新建订阅
+                    </button>
+                  </div>
+                </div>
+
+                <div class="subgrid">
+                  <div class="card subcard sh-mint">
+                    <div class="cardhead" style="gap: 10px">
+                      <h3>机场 A · 主订阅</h3>
+                      <span class="sp"></span>
+                      <span class="tag coral">当前使用</span>
+                      <button
+                        class="ibtn"
+                        style="width: 26px; height: 26px; border-width: 2px; box-shadow: none"
+                      >
+                        <svg class="i" style="width: 14px; height: 14px">
+                          <use href="#i-dots" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="url">
+                      https://sub.example.com/api/v1/client/subscribe?token=8f2a…
+                    </div>
+                    <div class="usage">
+                      <div class="l">已用流量<span class="sp mono">128 GB / 200 GB</span></div>
+                      <div class="track"><i style="width: 62%"></i></div>
+                    </div>
+                    <div class="meta3">
+                      <div><b>节点数</b><span class="mono">126</span></div>
+                      <div><b>到期</b><span class="mono">2027-01-12</span></div>
+                      <div><b>上次更新</b><span>3 小时前</span></div>
+                    </div>
+                    <div class="acts">
+                      <button class="pri">立即更新</button><button>编辑配置</button
+                      ><button class="danger">删除</button>
+                    </div>
+                  </div>
+
+                  <div class="card subcard sh-sunny">
+                    <div class="cardhead" style="gap: 10px">
+                      <h3>机场 B · 备份</h3>
+                      <span class="sp"></span>
+                      <button
+                        class="ibtn"
+                        style="width: 26px; height: 26px; border-width: 2px; box-shadow: none"
+                      >
+                        <svg class="i" style="width: 14px; height: 14px">
+                          <use href="#i-dots" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="url">https://backup.example.net/sub?token=4c1d…</div>
+                    <div class="usage">
+                      <div class="l">已用流量<span class="sp mono">12 GB / 50 GB</span></div>
+                      <div class="track"><i style="width: 24%"></i></div>
+                    </div>
+                    <div class="meta3">
+                      <div><b>节点数</b><span class="mono">34</span></div>
+                      <div><b>到期</b><span class="mono">2026-12-01</span></div>
+                      <div><b>上次更新</b><span>昨天</span></div>
+                    </div>
+                    <div class="acts">
+                      <button class="pri">立即更新</button><button>编辑配置</button
+                      ><button class="danger">删除</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card localcard sh-sunny">
+                  <div class="cardhead" style="gap: 10px">
+                    <h3 style="font-size: 16px">本地配置 · config.yaml</h3>
+                    <span class="tag mint">已合并</span>
+                    <span class="sp"></span>
+                    <button
+                      class="ibtn"
+                      style="
+                        width: auto;
+                        height: 34px;
+                        padding: 0 14px;
+                        border-width: 2px;
+                        box-shadow: none;
+                        font-size: 11px;
+                        font-weight: 900;
+                        font-family: inherit;
+                      "
+                    >
+                      编辑 YAML
+                    </button>
+                  </div>
+                  <div style="font-size: 11px; font-weight: 700">
+                    通过 Merge 与 Script 覆写远程订阅，订阅更新时不会被覆盖
+                  </div>
+                  <div style="font-size: 10px; font-weight: 700">
+                    规则覆写 42 条 · 端口覆写 7891 · 最后编辑 昨天 14:02
+                  </div>
+                  <div class="patches">
+                    <div><b>MERGE</b><span>覆写 42 条规则</span></div>
+                    <div><b>SCRIPT</b><span>混合端口改为 7891</span></div>
+                    <div><b>OVERRIDE</b><span>日志等级 info</span></div>
+                  </div>
+                </div>
+
+                <div class="card autocard sh-sea">
+                  <div class="cardhead">
+                    <h3 style="font-size: 16px">自动更新</h3>
+                    <span class="sp"></span>
+                    <div class="switch sm"><b></b></div>
+                  </div>
+                  <div class="setrow">
+                    更新间隔
+                    <div class="sp"></div>
+                    <span class="tabs"
+                      ><button>6h</button><button class="on">12h</button><button>24h</button></span
+                    >
+                  </div>
+                  <div class="setrow">
+                    订阅更新后自动切到延迟最低节点<span class="sp"></span>
+                    <div class="switch sm"><b></b></div>
+                  </div>
+                  <div class="setrow">
+                    通过代理下载订阅地址<span class="sp"></span>
+                    <div class="switch sm off"><b></b></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 08 SETTINGS ---------- -->
+        <section class="screen">
+          <div class="label">08 · 设置&nbsp;&nbsp; SETTINGS</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>设置</h1>
+                    <div class="sub">GoClash 3.0.0 · mihomo 1.19.4 · 服务模式运行中</div>
+                  </div>
+                  <div class="ph-r">
+                    <button class="btn ghost">打开配置目录</button>
+                    <button
+                      class="btn"
+                      style="
+                        background: var(--sunny);
+                        color: #000;
+                        box-shadow: 5px 5px 0 var(--coral);
+                      "
+                    >
+                      检查更新
+                    </button>
+                  </div>
+                </div>
+
+                <div class="grid4">
+                  <div class="card setcard sh-mint">
+                    <div class="hd">
+                      <span class="ib" style="background: var(--mint)"
+                        ><svg class="i"><use href="#i-rows" /></svg
+                      ></span>
+                      <h3>网络</h3>
+                      <span class="sp">NETWORK</span>
+                    </div>
+                    <div class="rows">
+                      <div class="setrow">
+                        系统代理<span class="sp"></span>
+                        <div class="switch sm"><b></b></div>
+                      </div>
+                      <div class="setrow">
+                        TUN 模式 · 需要系统服务<span class="sp"></span>
+                        <div class="switch sm off"><b></b></div>
+                      </div>
+                      <div class="setrow">
+                        混合端口<span class="sp"></span><span class="val mono">7890</span>
+                      </div>
+                      <div class="setrow">
+                        允许局域网连接<span class="sp"></span>
+                        <div class="switch sm off"><b></b></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card setcard sh-sunny">
+                    <div class="hd">
+                      <span class="ib" style="background: var(--sunny)"
+                        ><svg class="i"><use href="#i-gear" /></svg
+                      ></span>
+                      <h3>内核</h3>
+                      <span class="sp">CORE</span>
+                    </div>
+                    <div class="rows">
+                      <div class="setrow">
+                        代理模式<span class="sp"></span
+                        ><span class="tabs"
+                          ><button class="on">规则</button><button>全局</button
+                          ><button>直连</button></span
+                        >
+                      </div>
+                      <div class="setrow">
+                        日志等级<span class="sp"></span><span class="val mono">info</span>
+                      </div>
+                      <div class="setrow">
+                        内核版本<span class="sp"></span><span class="val mono">v1.19.4</span>
+                      </div>
+                      <div class="setrow">
+                        内核自动更新<span class="sp"></span>
+                        <div class="switch sm off"><b></b></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card setcard sh-coral">
+                    <div class="hd">
+                      <span class="ib" style="background: var(--peach)"
+                        ><svg class="i"><use href="#i-lang" /></svg
+                      ></span>
+                      <h3>外观</h3>
+                      <span class="sp">APPEARANCE</span>
+                    </div>
+                    <div class="rows">
+                      <div class="setrow">
+                        主题<span class="sp"></span
+                        ><span class="tabs"
+                          ><button class="on">浅色</button><button>深色</button
+                          ><button>跟随</button></span
+                        >
+                      </div>
+                      <div class="setrow">
+                        菜单栏显示实时延迟<span class="sp"></span>
+                        <div class="switch sm"><b></b></div>
+                      </div>
+                      <div class="setrow">
+                        界面语言<span class="sp"></span><span class="val">简体中文</span>
+                      </div>
+                      <div class="setrow">
+                        强调色<span class="sp"></span>
+                        <span class="swatches"
+                          ><i class="on" style="background: var(--coral)"></i
+                          ><i style="background: var(--mint)"></i
+                          ><i style="background: var(--sunny)"></i
+                        ></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card setcard sh-sea">
+                    <div class="hd">
+                      <span class="ib" style="background: var(--sea)"
+                        ><svg class="i"><use href="#i-monitor" /></svg
+                      ></span>
+                      <h3>系统</h3>
+                      <span class="sp">SYSTEM</span>
+                    </div>
+                    <div class="rows">
+                      <div class="setrow">
+                        开机自动启动<span class="sp"></span>
+                        <div class="switch sm"><b></b></div>
+                      </div>
+                      <div class="setrow">
+                        静默启动 · 不显示主窗口<span class="sp"></span>
+                        <div class="switch sm off"><b></b></div>
+                      </div>
+                      <div class="setrow">
+                        关闭窗口时<span class="sp"></span><span class="val">最小化到托盘</span>
+                      </div>
+                      <div class="setrow">
+                        更新通道<span class="sp"></span><span class="val">稳定版</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======================= ROW 5 ======================= -->
+      <div class="row">
+        <!-- ---------- 09 LOGS ---------- -->
+        <section class="screen">
+          <div class="label">09 · 日志&nbsp;&nbsp; LOGS</div>
+          <div class="win">
+            <div class="tb">
+              <div class="dots">
+                <i class="dot c"></i><i class="dot s"></i><i class="dot m"></i>
+              </div>
+              <div class="appname">GoClash</div>
+              <div class="appver">v3.0.0 · mihomo 1.19.4</div>
+              <div class="hint"><b></b>系统代理已接管</div>
+            </div>
+            <div class="body">
+              <aside class="side">
+                <div class="brand">
+                  <div class="logo">GC</div>
+                  <div>
+                    <h2>GoClash</h2>
+                    <p>Clash Meta 客户端</p>
+                  </div>
+                </div>
+                <nav class="nav">
+                  <a href="#"
+                    ><svg class="i"><use href="#i-home" /></svg>首页</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-globe" /></svg>代理</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-layers" /></svg>订阅</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-switch" /></svg>连接</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-fork" /></svg>规则</a
+                  >
+                  <a class="on" href="#"
+                    ><svg class="i"><use href="#i-list" /></svg>日志</a
+                  >
+                  <a href="#"
+                    ><svg class="i"><use href="#i-gear" /></svg>设置</a
+                  >
+                </nav>
+                <div class="kernel">
+                  <div class="krow"><i class="kdot"></i>mihomo 运行中</div>
+                  <div class="kmeta">运行 4h 12m · 混合端口 7890</div>
+                </div>
+              </aside>
+              <div class="main">
+                <div class="ph">
+                  <div>
+                    <h1>日志</h1>
+                    <div class="sub">实时输出 · 缓冲区 512 条 · 当前等级 info 及以上</div>
+                  </div>
+                  <div class="ph-r">
+                    <button class="btn ghost">清空</button>
+                    <button class="btn">
+                      <svg class="i"><use href="#i-folder" /></svg>日志目录
+                    </button>
+                  </div>
+                </div>
+
+                <div class="toolbar" style="height: 48px">
+                  <div style="display: flex; gap: 10px">
+                    <span class="chip">全部 512</span><span class="chip">debug 38</span
+                    ><span class="chip on">info 402</span><span class="chip">warn 64</span
+                    ><span class="chip">error 8</span>
+                  </div>
+                  <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
+                    <span style="font-size: 10px; font-weight: 900">自动滚动</span>
+                    <div class="switch sm" style="width: 42px; height: 24px">
+                      <b style="width: 14px; height: 14px"></b>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card data">
+                  <div class="thead">
+                    <span class="w110">时间</span><span class="w90">等级</span
+                    ><span class="c-h">输出</span>
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:41.203</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h"
+                      >[TCP] 192.168.1.12:52144 · www.youtube.com:443 · DomainSuffix(youtube.com) ·
+                      命中 节点选择[香港 IPLC 02]</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:41.118</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h"
+                      >[TCP] 192.168.1.12:52140 · api.github.com:443 · DomainSuffix(github.com) ·
+                      命中 节点选择[日本 东京 01]</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:40.902</span
+                    ><span class="w90"><span class="lvl white">DEBUG</span></span
+                    ><span class="c-h"
+                      >[DNS] query A fonts.googleapis.com · 142.250.72.14 · 命中缓存</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:40.771</span
+                    ><span class="w90"><span class="lvl sunny">WARN</span></span
+                    ><span class="c-h"
+                      >节点「美国 · 洛杉矶 02」延迟 210ms，超过阈值 150ms，已标记为待切换</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:40.335</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h"
+                      >[UDP] 192.168.1.12:5353 · 8.8.8.8:53 · GeoIP(CN) · 命中 DIRECT</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:39.884</span
+                    ><span class="w90"><span class="lvl coral">ERROR</span></span
+                    ><span class="c-h"
+                      >节点「英国 · 伦敦 01」连接超时（3000ms），已自动切换到备用节点</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:39.512</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h"
+                      >[TCP] 192.168.1.12:52138 · steamcommunity.com:443 · DomainKeyword(steam) ·
+                      命中 节点选择[香港 IPLC 02]</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:38.960</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h"
+                      >配置「机场 A · 主订阅」已更新，126 个节点载入完成 · 耗时 1.8s</span
+                    >
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:38.221</span
+                    ><span class="w90"><span class="lvl white">DEBUG</span></span
+                    ><span class="c-h">[TUN] inbound connection from 10.0.0.5:7890 · uid 501</span>
+                  </div>
+                  <div class="trow" style="height: 53px">
+                    <span class="w110 mono">20:27:37.905</span
+                    ><span class="w90"><span class="lvl">INFO</span></span
+                    ><span class="c-h">混合端口监听 127.0.0.1:7890 · 允许局域网 false</span>
+                  </div>
+                  <div class="tfoot">
+                    <span style="font-weight: 700"
+                      >自动滚动已开启 · 缓冲区 512 条 · 仅显示 info 及以上</span
+                    ><span class="sp mono">最后一条 20:27:41.203</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 10 STATES ---------- -->
+        <section class="screen">
+          <div class="label">10 · 状态与边界&nbsp;&nbsp; STATES</div>
+          <div class="win">
+            <div
+              style="
+                flex: 1;
+                padding: 28px;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                min-height: 0;
+              "
+            >
+              <div style="display: flex; align-items: center; justify-content: space-between">
+                <div>
+                  <h1 style="font-size: 24px; letter-spacing: -0.6px">状态与边界</h1>
+                  <div style="font-size: 10px; font-weight: 700; margin-top: 2px">
+                    空 / 加载 / 错误 / 权限 —— 每个数据面都必须有这四张面孔
+                  </div>
+                </div>
+                <span
+                  class="badge"
+                  style="
+                    background: #000;
+                    color: #fff;
+                    padding: 4px 10px;
+                    font-size: 9px;
+                    font-weight: 900;
+                    letter-spacing: 1px;
+                  "
+                  >4 STATES</span
+                >
+              </div>
+
+              <div class="stategrid">
+                <div class="card state sh-mint">
+                  <div class="ibox">
+                    <svg class="i"><use href="#i-plane" /></svg>
+                  </div>
+                  <h3>还没有订阅</h3>
+                  <p>去订阅页粘贴订阅链接，或从剪贴板导入；配置会自动合并进内核。</p>
+                  <button class="btn" style="box-shadow: 6px 6px 0 var(--mint)">去订阅页</button>
+                </div>
+
+                <div class="card state sh-sunny">
+                  <div class="ibox" style="background: var(--sunny)">
+                    <svg class="i"><use href="#i-clock" /></svg>
+                  </div>
+                  <h3>正在载入订阅…</h3>
+                  <p>拉取配置、解析节点、写入内核，通常 1 到 3 秒</p>
+                  <div class="skel" style="width: 300px"></div>
+                  <div class="skel" style="width: 210px"></div>
+                  <div class="skel" style="width: 255px"></div>
+                </div>
+
+                <div class="card state sh-coral">
+                  <div class="ibox" style="background: var(--coral)">
+                    <svg class="i"><use href="#i-warn" /></svg>
+                  </div>
+                  <h3>内核暂时不可用</h3>
+                  <p>无法从内核读取代理信息。重启内核通常可恢复；若持续失败请查看日志。</p>
+                  <div style="display: flex; gap: 10px">
+                    <button class="btn ink" style="transform: none">重启内核</button>
+                    <button class="btn ghost" style="transform: none">打开日志</button>
+                  </div>
+                </div>
+
+                <div class="card state sh-sea">
+                  <div class="ibox" style="background: var(--sea)">
+                    <svg class="i"><use href="#i-shield" /></svg>
+                  </div>
+                  <h3>TUN 模式需要系统服务</h3>
+                  <p>安装 GoClash 系统服务后，TUN 才能接管全部流量；安装时会请求管理员授权。</p>
+                  <button class="btn" style="box-shadow: 6px 6px 0 var(--mint)">
+                    安装系统服务
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="zoomctl">
+      <b>缩放</b><button class="on" data-z="1">100%</button><button data-z="0.75">75%</button
+      ><button data-z="0.5">50%</button>
+    </div>
+    <script>
+      document.querySelectorAll(".zoomctl button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          document.documentElement.style.zoom = b.dataset.z;
+          document.querySelectorAll(".zoomctl button").forEach(function (x) {
+            x.classList.toggle("on", x === b);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
