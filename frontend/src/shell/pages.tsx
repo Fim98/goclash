@@ -1,10 +1,24 @@
-import { Waypoints, Home, Globe, Layers, ArrowLeftRight, ScrollText, Settings } from "lucide-react";
+import {
+  Waypoints,
+  Home,
+  Globe,
+  Layers,
+  ArrowLeftRight,
+  ScrollText,
+  Settings,
+  Zap,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button, IconButton } from "@/components/base/button";
 import type { Gateway } from "@/gateway/types";
+import { HomePage } from "@/pages/home";
 
 export type PageId =
   "home" | "proxies" | "profiles" | "connections" | "rules" | "logs" | "settings";
+
+/** Pages receive this from the shell; the only sanctioned way to switch pages. */
+export type PageNavigate = (page: PageId) => void;
 
 export interface PageDefinition {
   id: PageId;
@@ -13,7 +27,9 @@ export interface PageDefinition {
   sub: string;
   icon: ReactNode;
   /** Present once the page is implemented; missing = placeholder board. */
-  render?: (gateway: Gateway) => ReactNode;
+  render?: (gateway: Gateway, navigate: PageNavigate) => ReactNode;
+  /** Rendered in the page header's right side, next to the title. */
+  actions?: (gateway: Gateway, navigate: PageNavigate) => ReactNode;
 }
 
 /** Line icons at 18px / 2.5 stroke — the weight the boards use. */
@@ -26,6 +42,20 @@ export const PAGES: PageDefinition[] = [
     label: "首页",
     sub: "连接状态 · 实时流量 · 出口信息",
     icon: <Home className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway, navigate) => <HomePage gateway={gateway} navigate={navigate} />,
+    actions: (gateway, navigate) => (
+      <>
+        <IconButton size="md" aria-label="打开设置" onClick={() => navigate("settings")}>
+          <Settings className="size-4" strokeWidth={2.5} />
+        </IconButton>
+        <Button
+          icon={<Zap className="size-3.5" strokeWidth={2.5} />}
+          onClick={() => void gateway.testAllGroups()}
+        >
+          立即测速
+        </Button>
+      </>
+    ),
   },
   {
     id: "proxies",

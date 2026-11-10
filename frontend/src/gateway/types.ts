@@ -126,6 +126,8 @@ export interface Gateway {
   testAllGroups(): Promise<void>;
   setMode(mode: ProxyMode): Promise<void>;
   setSystemProxy(on: boolean): Promise<void>;
+  /** Best-effort kernel restart; resolves once the core answers again. */
+  restartCore(): Promise<void>;
 
   connections(): Promise<Connection[]>;
   closeConnection(id: string): Promise<void>;

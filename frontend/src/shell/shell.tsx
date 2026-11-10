@@ -12,6 +12,8 @@ export interface AppShellProps {
   currentPage: PageId;
   status: Status | null;
   onNavigate: (pageId: PageId) => void;
+  /** Page header actions (page buttons, search…) resolved by App. */
+  actions?: ReactNode;
   children?: ReactNode;
 }
 
@@ -22,7 +24,14 @@ export interface AppShellProps {
  * The top strip starts at 80px so the macOS traffic lights keep their inset
  * position without colliding with the app name.
  */
-export function AppShell({ page, currentPage, status, onNavigate, children }: AppShellProps) {
+export function AppShell({
+  page,
+  currentPage,
+  status,
+  onNavigate,
+  actions,
+  children,
+}: AppShellProps) {
   return (
     <div className="flex h-dvh w-full flex-col bg-white text-ink">
       <header className="flex h-11 flex-none items-center gap-3 border-b-4 border-ink pl-20 pr-4">
@@ -77,6 +86,7 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
               </h1>
               <div className="mt-0.5 text-xs font-bold">{page.sub}</div>
             </div>
+            {actions ? <div className="flex h-16 items-center gap-3">{actions}</div> : null}
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-5">{children}</div>
         </main>

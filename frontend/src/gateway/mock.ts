@@ -14,213 +14,215 @@ import type {
 /**
  * In-memory gateway. v1 feeds the UI with the exact shapes the design boards
  * show; swapping to the real kernel later means replacing this file, not the
- * pages. Mutations live in local state so the UI can round-trip (settings,
- * node selection, closed connections…).
+ * pages.
+ *
+ * Every instance owns its state via closure copies — tests mount <App /> with
+ * a fresh gateway and never see each other's mutations. App keeps a single
+ * instance so dev mode retains state across page switches.
  */
 
 const CORE_VERSION = "1.19.4";
 const APP_VERSION = "v3.0.0";
 const UPTIME_SECONDS = 4 * 3600 + 12 * 60;
 
-const status: Status = {
-  connected: true,
-  mode: "rule",
-  systemProxy: true,
-  tun: false,
-  mixedPort: 7890,
-  coreVersion: CORE_VERSION,
-  uptimeSeconds: UPTIME_SECONDS,
-  exitNode: "香港 · IPLC 02",
-  exitLatency: 38,
-  exitIp: "203.0.113.42",
-  exitAsn: "HK · HKG · AS4760 CLOUDFLARE",
-  exitRegion: "香港",
-  nativeIp: true,
-};
-
-const settings: Settings = {
-  systemProxy: true,
-  tun: false,
-  mixedPort: 7890,
-  allowLan: false,
-  mode: "rule",
-  logLevel: "info",
-  autoUpdateIntervalHours: 12,
-  autoSwitchLowestLatency: true,
-  proxyDownload: false,
-  launchAtLogin: true,
-  silentStart: false,
-  closeAction: "tray",
-  channel: "stable",
-  language: "简体中文",
-  theme: "light",
-  accent: "coral",
-  menuBarLatency: true,
-};
-
-const groups: ProxyGroup[] = [
-  {
-    id: "proxy",
-    name: "节点选择",
-    strategy: "select",
-    selected: "香港 · IPLC 02",
-    nodes: [
-      { name: "香港 · IPLC 02", latency: 38 },
-      { name: "日本 · 东京 01", latency: 52 },
-      { name: "新加坡 · SG 03", latency: 118 },
-      { name: "台湾 · 台北 01", latency: 26 },
-      { name: "美国 · 洛杉矶 02", latency: 210 },
-      { name: "韩国 · 首尔 01", latency: 64 },
-    ],
-  },
-  {
-    id: "auto",
-    name: "自动选择",
-    strategy: "fallback",
-    nodes: [
-      { name: "香港 · IPLC 01", latency: 42 },
-      { name: "日本 · 东京 02", latency: 58 },
-      { name: "台湾 · 台北 02", latency: 31 },
-      { name: "新加坡 · SG 01", latency: 121 },
-      { name: "美国 · 洛杉矶 01", latency: 198 },
-      { name: "英国 · 伦敦 01", latency: 156 },
-    ],
-  },
-];
-
-const connections: Connection[] = [
-  {
-    id: "c1",
-    host: "www.youtube.com:443",
-    rule: "DOMAIN-SUFFIX,youtube.com",
-    exit: "香港 · IPLC 02",
-    uploadBytes: 1_200_000,
-    downloadBytes: 8_400_000,
-    durationSeconds: 134,
-    kind: "proxy",
-  },
-  {
-    id: "c2",
-    host: "api.github.com:443",
-    rule: "DOMAIN-SUFFIX,github.com",
-    exit: "日本 · 东京 01",
-    uploadBytes: 400_000,
-    downloadBytes: 1_800_000,
-    durationSeconds: 52,
-    kind: "proxy",
-  },
-  {
-    id: "c3",
-    host: "192.168.1.12:5353",
-    rule: "GEOIP,CN",
-    exit: "DIRECT",
-    uploadBytes: 0,
-    downloadBytes: 200_000,
-    durationSeconds: 723,
-    kind: "direct",
-  },
-  {
-    id: "c4",
-    host: "cdn.jsdelivr.net:443",
-    rule: "RULE-SET,cdn",
-    exit: "新加坡 · SG 03",
-    uploadBytes: 800_000,
-    downloadBytes: 5_100_000,
-    durationSeconds: 91,
-    kind: "proxy",
-  },
-  {
-    id: "c5",
-    host: "steamcommunity.com:443",
-    rule: "DOMAIN-KEYWORD,steam",
-    exit: "香港 · IPLC 02",
-    uploadBytes: 200_000,
-    downloadBytes: 2_600_000,
-    durationSeconds: 227,
-    kind: "proxy",
-  },
-  {
-    id: "c6",
-    host: "tracker.example.net:8080",
-    rule: "RULE-SET,tracker",
-    exit: "REJECT",
-    uploadBytes: 0,
-    downloadBytes: 0,
-    durationSeconds: 1,
-    kind: "reject",
-  },
-  {
-    id: "c7",
-    host: "fonts.googleapis.com:443",
-    rule: "DOMAIN-SUFFIX,googleapis.com",
-    exit: "台湾 · 台北 01",
-    uploadBytes: 100_000,
-    downloadBytes: 600_000,
-    durationSeconds: 18,
-    kind: "proxy",
-  },
-  {
-    id: "c8",
-    host: "10.0.0.5:7890",
-    rule: "IP-CIDR,10.0.0.0/8",
-    exit: "DIRECT",
-    uploadBytes: 0,
-    downloadBytes: 100_000,
-    durationSeconds: 502,
-    kind: "direct",
-  },
-  {
-    id: "c9",
-    host: "openai.com:443",
-    rule: "DOMAIN-SUFFIX,openai.com",
-    exit: "美国 · 洛杉矶 02",
-    uploadBytes: 900_000,
-    downloadBytes: 4_300_000,
-    durationSeconds: 44,
-    kind: "proxy",
-  },
-];
-
-const rules: Rule[] = [
-  { type: "DOMAIN-SUFFIX", payload: "google.com", policy: "节点选择", hits: 1284 },
-  { type: "DOMAIN-SUFFIX", payload: "github.com", policy: "节点选择", hits: 862 },
-  { type: "DOMAIN-KEYWORD", payload: "youtube", policy: "节点选择", hits: 2431 },
-  { type: "IP-CIDR", payload: "10.0.0.0/8", policy: "DIRECT", hits: 41 },
-  { type: "GEOIP", payload: "CN", policy: "DIRECT", hits: 9802 },
-  { type: "RULE-SET", payload: "reject-ads", policy: "REJECT", hits: 312 },
-  { type: "RULE-SET", payload: "proxy-gfw", policy: "节点选择", hits: 5140 },
-  { type: "DOMAIN-SUFFIX", payload: "cn", policy: "DIRECT", hits: 2076 },
-  { type: "MATCH", payload: "兜底 · 未命中任何规则", policy: "节点选择", hits: 640 },
-];
-
-const profiles: Profile[] = [
-  {
-    id: "p1",
-    name: "机场 A · 主订阅",
-    url: "https://sub.example.com/api/v1/client/subscribe?token=8f2a…",
-    usedBytes: 128 * 1024 ** 3,
-    totalBytes: 200 * 1024 ** 3,
-    nodeCount: 126,
-    expiresAt: "2027-01-12",
-    updatedAt: "3 小时前",
-    current: true,
-  },
-  {
-    id: "p2",
-    name: "机场 B · 备份",
-    url: "https://backup.example.net/sub?token=4c1d…",
-    usedBytes: 12 * 1024 ** 3,
-    totalBytes: 50 * 1024 ** 3,
-    nodeCount: 34,
-    expiresAt: "2026-12-01",
-    updatedAt: "昨天",
-    current: false,
-  },
-];
-
-const trafficClock: TrafficSample[] = [];
-
 export function createMockGateway(): Gateway {
+  const status: Status = {
+    connected: true,
+    mode: "rule",
+    systemProxy: true,
+    tun: false,
+    mixedPort: 7890,
+    coreVersion: CORE_VERSION,
+    uptimeSeconds: UPTIME_SECONDS,
+    exitNode: "香港 · IPLC 02",
+    exitLatency: 38,
+    exitIp: "203.0.113.42",
+    exitAsn: "HK · HKG · AS4760 CLOUDFLARE",
+    exitRegion: "香港",
+    nativeIp: true,
+  };
+
+  const settings: Settings = {
+    systemProxy: true,
+    tun: false,
+    mixedPort: 7890,
+    allowLan: false,
+    mode: "rule",
+    logLevel: "info",
+    autoUpdateIntervalHours: 12,
+    autoSwitchLowestLatency: true,
+    proxyDownload: false,
+    launchAtLogin: true,
+    silentStart: false,
+    closeAction: "tray",
+    channel: "stable",
+    language: "简体中文",
+    theme: "light",
+    accent: "coral",
+    menuBarLatency: true,
+  };
+
+  const groups: ProxyGroup[] = [
+    {
+      id: "proxy",
+      name: "节点选择",
+      strategy: "select",
+      selected: "香港 · IPLC 02",
+      nodes: [
+        { name: "香港 · IPLC 02", latency: 38 },
+        { name: "日本 · 东京 01", latency: 52 },
+        { name: "新加坡 · SG 03", latency: 118 },
+        { name: "台湾 · 台北 01", latency: 26 },
+        { name: "美国 · 洛杉矶 02", latency: 210 },
+        { name: "韩国 · 首尔 01", latency: 64 },
+      ],
+    },
+    {
+      id: "auto",
+      name: "自动选择",
+      strategy: "fallback",
+      nodes: [
+        { name: "香港 · IPLC 01", latency: 42 },
+        { name: "日本 · 东京 02", latency: 58 },
+        { name: "台湾 · 台北 02", latency: 31 },
+        { name: "新加坡 · SG 01", latency: 121 },
+        { name: "美国 · 洛杉矶 01", latency: 198 },
+        { name: "英国 · 伦敦 01", latency: 156 },
+      ],
+    },
+  ];
+
+  const connections: Connection[] = [
+    {
+      id: "c1",
+      host: "www.youtube.com:443",
+      rule: "DOMAIN-SUFFIX,youtube.com",
+      exit: "香港 · IPLC 02",
+      uploadBytes: 1_200_000,
+      downloadBytes: 8_400_000,
+      durationSeconds: 134,
+      kind: "proxy",
+    },
+    {
+      id: "c2",
+      host: "api.github.com:443",
+      rule: "DOMAIN-SUFFIX,github.com",
+      exit: "日本 · 东京 01",
+      uploadBytes: 400_000,
+      downloadBytes: 1_800_000,
+      durationSeconds: 52,
+      kind: "proxy",
+    },
+    {
+      id: "c3",
+      host: "192.168.1.12:5353",
+      rule: "GEOIP,CN",
+      exit: "DIRECT",
+      uploadBytes: 0,
+      downloadBytes: 200_000,
+      durationSeconds: 723,
+      kind: "direct",
+    },
+    {
+      id: "c4",
+      host: "cdn.jsdelivr.net:443",
+      rule: "RULE-SET,cdn",
+      exit: "新加坡 · SG 03",
+      uploadBytes: 800_000,
+      downloadBytes: 5_100_000,
+      durationSeconds: 91,
+      kind: "proxy",
+    },
+    {
+      id: "c5",
+      host: "steamcommunity.com:443",
+      rule: "DOMAIN-KEYWORD,steam",
+      exit: "香港 · IPLC 02",
+      uploadBytes: 200_000,
+      downloadBytes: 2_600_000,
+      durationSeconds: 227,
+      kind: "proxy",
+    },
+    {
+      id: "c6",
+      host: "tracker.example.net:8080",
+      rule: "RULE-SET,tracker",
+      exit: "REJECT",
+      uploadBytes: 0,
+      downloadBytes: 0,
+      durationSeconds: 1,
+      kind: "reject",
+    },
+    {
+      id: "c7",
+      host: "fonts.googleapis.com:443",
+      rule: "DOMAIN-SUFFIX,googleapis.com",
+      exit: "台湾 · 台北 01",
+      uploadBytes: 100_000,
+      downloadBytes: 600_000,
+      durationSeconds: 18,
+      kind: "proxy",
+    },
+    {
+      id: "c8",
+      host: "10.0.0.5:7890",
+      rule: "IP-CIDR,10.0.0.0/8",
+      exit: "DIRECT",
+      uploadBytes: 0,
+      downloadBytes: 100_000,
+      durationSeconds: 502,
+      kind: "direct",
+    },
+    {
+      id: "c9",
+      host: "openai.com:443",
+      rule: "DOMAIN-SUFFIX,openai.com",
+      exit: "美国 · 洛杉矶 02",
+      uploadBytes: 900_000,
+      downloadBytes: 4_300_000,
+      durationSeconds: 44,
+      kind: "proxy",
+    },
+  ];
+
+  const rules: Rule[] = [
+    { type: "DOMAIN-SUFFIX", payload: "google.com", policy: "节点选择", hits: 1284 },
+    { type: "DOMAIN-SUFFIX", payload: "github.com", policy: "节点选择", hits: 862 },
+    { type: "DOMAIN-KEYWORD", payload: "youtube", policy: "节点选择", hits: 2431 },
+    { type: "IP-CIDR", payload: "10.0.0.0/8", policy: "DIRECT", hits: 41 },
+    { type: "GEOIP", payload: "CN", policy: "DIRECT", hits: 9802 },
+    { type: "RULE-SET", payload: "reject-ads", policy: "REJECT", hits: 312 },
+    { type: "RULE-SET", payload: "proxy-gfw", policy: "节点选择", hits: 5140 },
+    { type: "DOMAIN-SUFFIX", payload: "cn", policy: "DIRECT", hits: 2076 },
+    { type: "MATCH", payload: "兜底 · 未命中任何规则", policy: "节点选择", hits: 640 },
+  ];
+
+  const profiles: Profile[] = [
+    {
+      id: "p1",
+      name: "机场 A · 主订阅",
+      url: "https://sub.example.com/api/v1/client/subscribe?token=8f2a…",
+      usedBytes: 128 * 1024 ** 3,
+      totalBytes: 200 * 1024 ** 3,
+      nodeCount: 126,
+      expiresAt: "2027-01-12",
+      updatedAt: "3 小时前",
+      current: true,
+    },
+    {
+      id: "p2",
+      name: "机场 B · 备份",
+      url: "https://backup.example.net/sub?token=4c1d…",
+      usedBytes: 12 * 1024 ** 3,
+      totalBytes: 50 * 1024 ** 3,
+      nodeCount: 34,
+      expiresAt: "2026-12-01",
+      updatedAt: "昨天",
+      current: false,
+    },
+  ];
+
+  const trafficClock: TrafficSample[] = [];
   const logBuffer: LogLine[] = [];
   const trafficHandlers = new Set<StreamHandler>();
   const logHandlers = new Set<StreamHandler>();
@@ -235,14 +237,20 @@ export function createMockGateway(): Gateway {
   function ensureTrafficClock() {
     if (trafficTimer) return;
     trafficTimer = setInterval(() => {
+      // Boards show 88.2 MB/s with decimal units; keep the mock in decimal
+      // bytes so the displays match the design without conversion.
       const sample: TrafficSample = {
-        down: 88.2 * 1024 * 1024,
-        up: 12.4 * 1024 * 1024,
+        down: 88.2 * 1e6,
+        up: 12.4 * 1e6,
         connections: 42,
       };
       trafficClock.push(sample);
       if (trafficClock.length > 60) trafficClock.shift();
       trafficHandlers.forEach((handler) => handler(sample));
+      if (trafficHandlers.size === 0) {
+        clearInterval(trafficTimer);
+        trafficTimer = undefined;
+      }
     }, 1000);
   }
 
@@ -281,6 +289,10 @@ export function createMockGateway(): Gateway {
       settings.systemProxy = on;
       status.systemProxy = on;
       status.connected = on;
+    },
+
+    async restartCore() {
+      pushLog({ time: now(), level: "info", message: "内核已重启，代理信息重新载入" });
     },
 
     async connections() {

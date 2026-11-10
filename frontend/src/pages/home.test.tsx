@@ -1,0 +1,82 @@
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import App from "@/App";
+import { createMockGateway } from "@/gateway/mock";
+import type { Gateway } from "@/gateway/types";
+
+describe("Home page", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders the current exit node in the hero", async () => {
+    render(<App gateway={createMockGateway()} />);
+
+    expect(await screen.findByText("香港 · IPLC 02")).toBeInTheDocument();
+    expect(screen.getByText("已连接")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "系统代理" })).toBeChecked();
+  });
+
+  it("routes the system proxy toggle through the gateway", async () => {
+    const base = createMockGateway();
+    const setSystemProxy = vi.fn((on: boolean) => base.setSystemProxy(on));
+    const gateway: Gateway = { ...base, setSystemProxy };
+
+    render(<App gateway={gateway} />);
+
+    await userEvent.click(await screen.findByRole("switch", { name: "系统代理" }));
+
+    expect(setSystemProxy).toHaveBeenCalledWith(false);
+    expect(screen.getByRole("switch", { name: "系统代理" })).not.toBeChecked();
+    expect((await screen.findAllByText("未连接")).length).toBeGreaterThan(0);
+  });
+
+  it("switches the proxy mode through the gateway", async () => {
+    const base = createMockGateway();
+    const setMode = vi.fn((mode: "rule" | "global" | "direct") => base.setMode(mode));
+    const gateway: Gateway = { ...base, setMode };
+
+    render(<App gateway={gateway} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "全局" }));
+
+    expect(setMode).toHaveBeenCalledWith("global");
+    expect(await screen.findByText(/全局模式 ·/)).toBeInTheDocument();
+  });
+
+  it("swaps the whole page for the error panel when the gateway fails", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      status: () => Promise.reject(new Error("kernel down")),
+    };
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByText("内核暂时不可用")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重启内核" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /打开日志/ })).toBeInTheDocument();
+    expect(screen.queryByText("香港 · IPLC 02")).not.toBeInTheDocument();
+  });
+
+  it("streams traffic into stat cards with one decimal after the first tick", async () => {
+    vi.useFakeTimers();
+
+    render(<App gateway={createMockGateway()} />);
+    await act(async () => {}); // flush the status fetch
+
+    // Skeleton, not zero, before the stream produces a sample.
+    expect(screen.queryByText("88.2 MB/s")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100);
+    });
+
+    // Hero chip + stat card both show the speed.
+    expect(screen.getAllByText("88.2 MB/s")).toHaveLength(2);
+    expect(screen.getAllByText("12.4 MB/s")).toHaveLength(2);
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
+});

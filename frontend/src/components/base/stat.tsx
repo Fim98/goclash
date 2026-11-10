@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 import { Card, type CardShadow } from "./card";
 
 export interface StatCardProps {
-  /** Small caption above the value; carries the unit, e.g. "下载速度 · MB/s". */
+  /** Small caption above the value; carries the unit when it is fixed, e.g. "下载速度". */
   label: string;
-  /** Rendered at 32px black — numbers only, the unit stays in the label. */
-  value: string;
+  /** Rendered at 32px black — usually a string, but a skeleton bar while streaming. */
+  value: ReactNode;
   icon: ReactNode;
   /** Square behind the icon; defaults to sunny so all three stats differ. */
   iconBackground?: string;

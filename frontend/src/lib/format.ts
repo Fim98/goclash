@@ -34,6 +34,12 @@ export function formatSpeed(bytesPerSecond: number, digits = 1): string {
   return `${trim(value, digits)} ${unit}/s`;
 }
 
+/** Wire speed with fixed decimals — stat cards keep one decimal while streaming. */
+export function formatSpeedFixed(bytesPerSecond: number, digits = 1): string {
+  const { value, unit } = scale(bytesPerSecond, 1000);
+  return `${value.toFixed(digits)} ${unit}/s`;
+}
+
 /** A single traffic cell: "1.2 MB". */
 export function formatTraffic(bytes: number): string {
   const { value, unit } = scale(bytes, 1000);
