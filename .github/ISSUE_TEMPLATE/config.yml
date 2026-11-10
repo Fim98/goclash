@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Wails documentation
+    url: https://v3.wails.io/
+    about: Guides and API reference for the framework this app is built on.
