@@ -1,16 +1,44 @@
+import { useEffect, useState } from "react";
+
+import { createMockGateway } from "./gateway/mock";
+import type { Gateway, Status } from "./gateway/types";
+import { AppShell } from "./shell/shell";
+import { PagePlaceholder } from "./shell/page-placeholder";
+import { PAGES, type PageId } from "./shell/pages";
+
 /**
- * App shell placeholder.
- *
- * Ticket 01 only proves the canvas: correct window, correct tokens, no demo
- * chrome. The real shell (title bar, sidebar navigation, page routing) lands in
- * ticket 02 — everything here should be replaced by it.
+ * The single testing seam: pages receive a Gateway, and tests mount <App /> with
+ * a controlled one. The mock is a module singleton so dev mode keeps its state
+ * across page switches.
  */
-export default function App() {
+const defaultGateway = createMockGateway();
+
+export interface AppProps {
+  gateway?: Gateway;
+}
+
+export default function App({ gateway = defaultGateway }: AppProps) {
+  const [currentPage, setCurrentPage] = useState<PageId>("home");
+  const [status, setStatus] = useState<Status | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    gateway
+      .status()
+      .then((next) => {
+        if (!cancelled) setStatus(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [gateway]);
+
+  const page = PAGES.find((candidate) => candidate.id === currentPage) ?? PAGES[0];
+
   return (
-    <div className="flex h-dvh w-full flex-col bg-white text-ink">
-      <main className="grid flex-1 place-items-center">
-        <p className="text-[13px] font-black tracking-[1.4px]">GOCLASH · 界面施工中</p>
-      </main>
-    </div>
+    <AppShell page={page} status={status} currentPage={currentPage} onNavigate={setCurrentPage}>
+      {page.render ? page.render(gateway) : <PagePlaceholder label={page.label} />}
+    </AppShell>
   );
 }
