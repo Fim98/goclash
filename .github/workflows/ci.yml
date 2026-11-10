@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (format / lint / types)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Install tooling dependencies
+        run: npm ci
+
+      - name: Check formatting (prettier)
+        run: npm run format:check
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Typecheck (tsc)
+        run: npm run typecheck
+
+  go:
+    name: Go (format / vet / lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Wails compiles cgo code on Linux and needs the GTK/WebKit headers.
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      # `go:embed all:frontend/dist` fails if the directory does not exist.
+      # A stub index is enough for compile/lint checks; the real frontend build
+      # happens in the `build` job.
+      - name: Stub frontend dist (embed placeholder)
+        run: mkdir -p frontend/dist && echo '<!doctype html>' > frontend/dist/index.html
+
+      - name: Check formatting (gofmt)
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint (golangci-lint)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=5m
+
+  build:
+    name: Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Build backend
+        run: go build -trimpath -o bin/goclash .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: goclash-darwin
+          path: bin/goclash
+          if-no-files-found: error

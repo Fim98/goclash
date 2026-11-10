@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+    "golang.go",
+    "ms-vscode.vscode-typescript-next",
+    "redhat.vscode-yaml"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "goclash",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "goclash - a Wails3 desktop application",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit -p frontend/tsconfig.json",
+    "build:frontend": "npm run --prefix frontend build",
+    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "commitlint": "commitlint --edit"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,ts,tsx,json,css,html,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

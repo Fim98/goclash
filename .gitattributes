@@ -1,0 +1,36 @@
+* text=auto eol=lf
+
+# Go sources are always LF, Go tooling normalises them anyway.
+*.go text eol=lf
+
+# Windows scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Shell scripts must stay LF or they break on checkout.
+*.sh text eol=lf
+
+# Binary assets - never diff, never convert.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.syso binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.so binary
+
+# Lockfiles: generated, keep out of diffs in reviews.
+package-lock.json linguist-generated=true -diff
+go.sum linguist-generated=true -diff

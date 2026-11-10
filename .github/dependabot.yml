@@ -1,0 +1,64 @@
+version: 2
+
+updates:
+  # Root tooling (eslint, prettier, commitlint, husky...)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      lint-tooling:
+        patterns:
+          - eslint*
+          - "@eslint/*"
+          - prettier*
+          - "@commitlint/*"
+          - husky
+          - lint-staged
+          - typescript-eslint
+          - globals
+
+  # Frontend runtime deps
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react*"
+      vite:
+        patterns:
+          - vite
+          - "@vitejs/*"
+
+  # Go modules (Wails and friends)
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Keep the workflow actions themselves current
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+      include: scope

@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+            artifact: goclash-darwin
+            binary: bin/goclash
+          - os: ubuntu-latest
+            name: Linux
+            artifact: goclash-linux
+            binary: bin/goclash
+          - os: windows-latest
+            name: Windows
+            artifact: goclash-windows
+            binary: bin/goclash.exe
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      # Wails on Windows compiles cgo code and needs a MinGW toolchain.
+      - name: Check Windows toolchain
+        if: runner.os == 'Windows'
+        run: gcc --version
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Build application
+        shell: bash
+        run: go build -trimpath -ldflags="-s -w" -o "${{ matrix.binary }}" .
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          mkdir -p release
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "release/goclash-${{ github.ref_name }}-windows.zip" "${{ matrix.binary }}"
+          else
+            tar -czf "release/goclash-${{ github.ref_name }}-${{ runner.os }}.tar.gz" -C bin goclash
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: artifacts/*
+          generate_release_notes: true
+          draft: true

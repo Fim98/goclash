@@ -1,0 +1,2 @@
+# Format and lint staged files before committing
+npx lint-staged
