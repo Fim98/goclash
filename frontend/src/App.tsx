@@ -1,190 +1,125 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Events, WML } from "@wailsio/runtime";
+import { Moon, Sun, User, ArrowRight, Clock } from "lucide-react";
+import { useTheme } from "next-themes";
 import { GreetService } from "../bindings/changeme";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 // Show the actual Wails version this project was generated against.
 const wailsVersion = "v3.0.0";
 
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label="Toggle theme"
+      className="rounded-full"
+      // Wails: make the button clickable instead of a window-drag handle.
+      style={{ ["--wails-draggable" as string]: "no-drag" }}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+    >
+      <Sun className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+      <Moon className="absolute size-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+    </Button>
+  );
+}
+
 function App() {
   const [name, setName] = useState<string>("");
+  const [greeting, setGreeting] = useState<string | null>(null);
   const [time, setTime] = useState<string>("Listening for Time event...");
 
-  const titleNameRef = useRef<HTMLSpanElement | null>(null);
-  const toastRef = useRef<HTMLDivElement | null>(null);
-  const resultRef = useRef<HTMLSpanElement | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Crossfade the framework word in the heading ("Wails + React") to the name
-  // the user entered ("Wails + <name>"): the old word fades out while the new one
-  // fades in over the same spot.
-  const swapTitleName = (name: string) => {
-    const titleNameElement = titleNameRef.current;
-    if (!titleNameElement) {
-      return;
-    }
-    const current = titleNameElement.querySelector(".title-name-text:not(.is-outgoing)");
-    if (!current || current.textContent === name) {
-      return;
-    }
-    const incoming = document.createElement("span");
-    incoming.className = "title-name-text is-entering";
-    incoming.textContent = name;
-    current.classList.add("is-outgoing");
-    titleNameElement.appendChild(incoming);
-    // Force a reflow so the transitions run from the starting state.
-    void incoming.offsetWidth;
-    incoming.classList.remove("is-entering");
-    current.classList.add("is-leaving");
-    current.addEventListener("transitionend", () => current.remove(), { once: true });
-  };
-
-  // Pop the toast with the message Go returned, then auto-dismiss it.
-  const showToast = (message: string) => {
-    if (resultRef.current) {
-      resultRef.current.innerText = message;
-    }
-    if (toastRef.current) {
-      toastRef.current.classList.add("is-visible");
-    }
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => {
-      if (toastRef.current) {
-        toastRef.current.classList.remove("is-visible");
-      }
-    }, 4000);
-  };
 
   const doGreet = () => {
     const n = name || "anonymous";
-    swapTitleName(n);
-    GreetService.Greet(n).then(showToast).catch(console.error);
+    GreetService.Greet(n)
+      .then((message) => {
+        setGreeting(message);
+        clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setGreeting(null), 4000);
+      })
+      .catch(console.error);
   };
 
   useEffect(() => {
     Events.On("time", (timeValue: { data: string }) => {
-      // On a narrow screen the full RFC1123 stamp is too wide for the footer, so
-      // show just the clock time there (matching the CSS breakpoint).
-      const full = timeValue.data;
-      const compact = (full.match(/\d{1,2}:\d{2}:\d{2}/) || [full])[0];
-      setTime(window.matchMedia("(max-width: 640px)").matches ? compact : full);
+      setTime(timeValue.data);
     });
     // Reload WML so it picks up the wml tags
     WML.Reload();
+    return () => clearTimeout(toastTimer.current);
   }, []);
 
   return (
-    <>
-      <main className="container">
-        <header className="brand">
-          <a
-            className="brand-mark"
-            data-wml-openURL="https://v3.wails.io"
-            aria-label="Wails website"
-          >
-            <img src="/wails.png" className="brand-logo" alt="Wails logo" />
-          </a>
-          <a className="brand-badge" data-wml-openURL="https://reactjs.org" aria-label="React">
-            <img src="/react.svg" alt="React logo" />
-          </a>
-        </header>
+    <div className="bg-background text-foreground flex min-h-svh flex-col">
+      <header className="flex items-center justify-end p-4">
+        <ThemeToggle />
+      </header>
 
-        <h1 className="title">
-          <span className="title-accent">Wails +</span>{" "}
-          <span className="title-name" ref={titleNameRef}>
-            <span className="title-name-text">React</span>
-          </span>
-        </h1>
-        <p className="subtitle">Build beautiful cross-platform apps with Go and React.</p>
-
-        <div className="greet">
-          <div className="input-box">
-            <svg
-              className="input-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <input
-              aria-label="input"
-              className="input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              type="text"
-              placeholder="Your name"
-              autoComplete="off"
-            />
-            <button aria-label="greet-btn" className="btn" onClick={doGreet}>
-              Greet
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </button>
-          </div>
-        </div>
+      <main
+        className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16"
+        style={{ ["--wails-draggable" as string]: "no-drag" }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Wails + React + shadcn/ui</CardTitle>
+            <CardDescription>
+              Tailwind v4 · light &amp; dark theme · ready for StyleKit themes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex w-full items-center gap-2">
+              <Input
+                aria-label="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") doGreet();
+                }}
+                type="text"
+                placeholder="Your name"
+                autoComplete="off"
+              />
+              <Button onClick={doGreet}>
+                <User />
+                Greet
+                <ArrowRight />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </main>
 
-      <hr className="footer-divider" />
-      <footer className="footer">
-        <span className="footer-version">
-          <span>{wailsVersion}</span>
-        </span>
-        <span className="footer-time">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+      <footer className="mx-auto flex w-full max-w-xl items-center justify-between px-6 py-4 text-muted-foreground text-sm">
+        <span>{wailsVersion}</span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="size-3.5" aria-hidden="true" />
           <span>{time}</span>
         </span>
-        <a
-          className="footer-docs"
-          data-wml-openURL="https://v3.wails.io"
-          aria-label="Wails documentation"
-        >
-          Docs
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <line x1="7" y1="17" x2="17" y2="7" />
-            <polyline points="7 7 17 7 17 17" />
-          </svg>
-        </a>
       </footer>
 
-      <div className="toast" ref={toastRef} role="status" aria-live="polite">
-        <span className="toast-label">From Go</span>
-        <span aria-label="result" className="toast-msg" ref={resultRef}></span>
-      </div>
-    </>
+      {greeting && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-popover text-popover-foreground animate-in fade-in slide-in-from-bottom-4 fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit items-center gap-2 rounded-lg border px-4 py-3 shadow-lg"
+          style={{ ["--wails-draggable" as string]: "no-drag" }}
+        >
+          <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+            From Go
+          </span>
+          <span aria-label="result" className="text-sm">
+            {greeting}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
