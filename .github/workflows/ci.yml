@@ -44,6 +44,9 @@ jobs:
       - name: Typecheck (tsc)
         run: npm run typecheck
 
+      - name: Test (vitest)
+        run: npm run test
+
   go:
     name: Go (format / vet / lint)
     runs-on: ubuntu-latest

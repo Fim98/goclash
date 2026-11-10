@@ -11,8 +11,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit -p frontend/tsconfig.json",
+    "test": "npm run test --prefix frontend",
     "build:frontend": "npm run --prefix frontend build",
-    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "commitlint": "commitlint --edit"
   },
   "lint-staged": {
