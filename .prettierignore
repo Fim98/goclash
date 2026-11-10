@@ -16,11 +16,17 @@ frontend/package-lock.json
 go.sum
 wails.json
 
+# Agent skills (managed by the skills tooling; updates may replace whole files)
+.agents
+
 # Go sources are formatted by gofmt, not Prettier
 *.go
 
 # Husky hooks (plain shell scripts)
 .husky
+
+# Markdown is hand-authored; never auto-format it
+*.md
 
 # Binary assets - no Prettier parser, or formatting them just adds noise
 *.png
@@ -36,6 +42,3 @@ wails.json
 *.ttf
 *.otf
 *.pdf
-
-# Generated changelogs
-CHANGELOG.md

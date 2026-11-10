@@ -38,6 +38,8 @@ coverage.out
 
 # WorkBuddy / AI assistant workspace state
 .workbuddy/
+# IDE-managed mirror of the committed .agents/skills library
+.codebuddy/
 
 # Env
 .env
