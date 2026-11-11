@@ -20,7 +20,11 @@ var trayIcon []byte
 // item that owns it. Clicking the icon toggles the popup; Wails positions it
 // under the icon and hides it again when it loses focus, so no manual window
 // management is needed here.
-func setupTray(app *application.App, mainWindow *application.WebviewWindow) *application.SystemTray {
+func setupTray(
+	app *application.App,
+	mainWindow *application.WebviewWindow,
+	background application.RGBA,
+) *application.SystemTray {
 	trayWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "tray",
 		Title:            "GoClash",
@@ -30,7 +34,7 @@ func setupTray(app *application.App, mainWindow *application.WebviewWindow) *app
 		Frameless:        true,
 		AlwaysOnTop:      true,
 		DisableResize:    true,
-		BackgroundColour: application.NewRGB(255, 255, 255),
+		BackgroundColour: background,
 		URL:              "/?window=tray",
 	})
 

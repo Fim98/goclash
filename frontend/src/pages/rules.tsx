@@ -173,7 +173,7 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
         <Chip
           active={sortByHits}
           onClick={() => setSortByHits((value) => !value)}
-          className={sortByHits ? "bg-sunny text-ink" : undefined}
+          className={sortByHits ? "bg-sunny text-on-accent" : undefined}
         >
           按命中排序
         </Chip>
@@ -205,7 +205,7 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
           columns={columns}
           rows={visible}
           rowKey={(rule) => `${rule.type}:${rule.payload}`}
-          rowClassName={(rule) => (rule.type === "MATCH" ? "border-ink bg-ink text-white" : "")}
+          rowClassName={(rule) => (rule.type === "MATCH" ? "border-ink bg-ink text-surface" : "")}
           footer={
             <>
               <span>
@@ -232,8 +232,8 @@ function PolicyPill({ policy }: { policy: string }) {
     policy === "REJECT"
       ? "bg-coral text-white"
       : policy === "DIRECT"
-        ? "bg-white text-ink"
-        : "bg-mint text-ink";
+        ? "bg-surface text-ink"
+        : "bg-mint text-on-accent";
   return (
     <span
       className={cn(

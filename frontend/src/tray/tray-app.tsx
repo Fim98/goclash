@@ -95,7 +95,7 @@ export function TrayApp({ gateway }: { gateway?: Gateway }) {
   }
 
   return (
-    <div className="flex h-dvh w-full flex-col border-4 border-ink bg-white text-ink">
+    <div className="flex h-dvh w-full flex-col border-4 border-ink bg-surface text-ink">
       <header className="flex h-10 flex-none items-center gap-2 border-b-4 border-ink px-4">
         <i aria-hidden className="size-2.5 border-2 border-ink bg-coral" />
         <span className="text-[13px] font-black">GoClash</span>
@@ -103,7 +103,7 @@ export function TrayApp({ gateway }: { gateway?: Gateway }) {
           type="button"
           aria-label="关闭浮窗"
           onClick={() => void notifyHost("tray:hide")}
-          className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-white"
+          className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-surface"
         >
           <X className="size-3" strokeWidth={3} />
         </button>
@@ -167,7 +167,7 @@ function TrayBody({
         shadowSize={6}
         className={cn(
           "flex h-[104px] flex-none -rotate-1 items-center justify-between px-4",
-          connected ? "bg-coral" : "bg-white",
+          connected ? "bg-coral text-on-accent" : "bg-surface",
         )}
       >
         <div className="min-w-0">
@@ -218,7 +218,7 @@ function TrayBody({
                 "flex h-11 items-center justify-between border-ink px-2.5 text-left",
                 selected
                   ? "border-[3px] bg-sunny"
-                  : "border-2 bg-white transition-colors hover:bg-sunny/40",
+                  : "border-2 bg-surface transition-colors hover:bg-sunny/40",
               )}
             >
               <span className="truncate text-xs font-bold">{node.name}</span>

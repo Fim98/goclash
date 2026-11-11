@@ -17,7 +17,7 @@ export function Input({ icon, invalid = false, className, ...props }: InputProps
   return (
     <div
       className={cn(
-        "flex h-11 items-center gap-2 border-4 bg-white px-3",
+        "flex h-11 items-center gap-2 border-4 bg-surface px-3",
         invalid
           ? "border-coral shadow-[4px_4px_0_var(--color-coral)]"
           : "border-ink shadow-[4px_4px_0_var(--color-seafoam)] focus-within:shadow-[4px_4px_0_var(--color-mint)]",

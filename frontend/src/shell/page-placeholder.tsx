@@ -4,7 +4,7 @@
  */
 export function PagePlaceholder({ label }: { label: string }) {
   return (
-    <div className="grid flex-1 place-items-center border-4 border-ink bg-white shadow-[8px_8px_0_var(--color-mint)]">
+    <div className="grid flex-1 place-items-center border-4 border-ink bg-surface shadow-[8px_8px_0_var(--color-mint)]">
       <p className="text-[13px] font-black tracking-[1.4px]">{label} · 本页施工中</p>
     </div>
   );

@@ -3,9 +3,9 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
-/* Dark mode is out of scope for v1 — the design ships light only. The variant
-   stays declared so shadcn components using `dark:` remain inert rather than
-   silently matching everything. */
+/* The shell flips via [data-theme] on <html>, set from the saved setting. The
+   `dark:` variant stays declared for generated shadcn components; the app's own
+   components never use it — they only read the tokens below. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -16,8 +16,13 @@
     "Inter Variable", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui,
     sans-serif;
 
-  /* Brutalist palette — see design.md. `white` reuses Tailwind's built-in. */
-  --color-ink: #000000;
+  /* Brutalist palette — see design.md.
+     ink/surface are structural and flip with the theme; accents never do, and
+     anything drawn ON an accent uses on-accent (fixed black) so a coral chip
+     does not turn white-on-yellow in dark mode. */
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-on-accent: #000000;
   --color-coral: #ff6b6b;
   --color-mint: #4ecdc4;
   --color-sunny: #ffe66d;
@@ -67,40 +72,55 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* No soft greys anywhere: muted text is still ink, borders are ink. */
+/* No soft greys anywhere: muted text is still ink, borders are ink.
+   Everything below derives from --ink / --surface so the dark block only has to
+   flip those two. */
 :root {
-  --background: #ffffff;
-  --foreground: #000000;
-  --card: #ffffff;
-  --card-foreground: #000000;
-  --popover: #ffffff;
-  --popover-foreground: #000000;
+  color-scheme: light;
+  --ink: #000000;
+  --surface: #ffffff;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
   --primary: #ff6b6b;
   --primary-foreground: #ffffff;
-  --secondary: #ffffff;
-  --secondary-foreground: #000000;
-  --muted: #ffffff;
-  --muted-foreground: #000000;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface);
+  --muted-foreground: var(--ink);
   --accent: #ffe66d;
   --accent-foreground: #000000;
   --destructive: #ff6b6b;
-  --border: #000000;
-  --input: #000000;
-  --ring: #000000;
+  --border: var(--ink);
+  --input: var(--ink);
+  --ring: var(--ink);
   --chart-1: #ff6b6b;
   --chart-2: #4ecdc4;
   --chart-3: #ffe66d;
   --chart-4: #95e1d3;
   --chart-5: #f38181;
   --radius: 0rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #000000;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
   --sidebar-primary: #ff6b6b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #ffe66d;
   --sidebar-accent-foreground: #000000;
-  --sidebar-border: #000000;
-  --sidebar-ring: #000000;
+  --sidebar-border: var(--ink);
+  --sidebar-ring: var(--ink);
+}
+
+/* Dark keeps the same skeleton: 4px borders, zero radius, hard shadows. What
+   changes is polarity — near-black surface, warm off-white ink. Accents keep
+   their candy values because they already read well on black. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f4f1e8;
+  --surface: #0b0b0b;
 }
 
 @layer base {

@@ -60,14 +60,14 @@ export function DataTable<Row>({
       role="table"
       aria-label={ariaLabel}
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden border-4 border-ink bg-white",
+        "flex min-h-0 flex-col overflow-hidden border-4 border-ink bg-surface",
         className,
       )}
     >
       <div role="rowgroup">
         <div
           role="row"
-          className="flex h-[46px] flex-none items-center bg-ink px-4 text-[9px] font-black tracking-[0.6px] text-white"
+          className="flex h-[46px] flex-none items-center bg-ink px-4 text-[9px] font-black tracking-[0.6px] text-surface"
         >
           {columns.map((column) => (
             <div

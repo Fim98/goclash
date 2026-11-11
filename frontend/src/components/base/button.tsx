@@ -18,8 +18,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "border-ink bg-coral text-white -rotate-2 shadow-[5px_5px_0_var(--color-mint)] hover:rotate-3 hover:-translate-y-1 hover:shadow-[8px_8px_0_var(--color-sunny)] active:translate-x-[6px] active:translate-y-[6px] active:rotate-0 active:scale-95",
   ghost:
-    "border-ink bg-white text-ink shadow-[4px_4px_0_var(--color-sunny)] hover:rotate-2 hover:-translate-y-[3px] active:translate-x-[6px] active:translate-y-[6px]",
-  ink: "border-ink bg-ink text-white shadow-[6px_6px_0_var(--color-sunny)] hover:-translate-y-1 active:translate-x-[6px] active:translate-y-[6px]",
+    "border-ink bg-surface text-ink shadow-[4px_4px_0_var(--color-sunny)] hover:rotate-2 hover:-translate-y-[3px] active:translate-x-[6px] active:translate-y-[6px]",
+  ink: "border-ink bg-ink text-surface shadow-[6px_6px_0_var(--color-sunny)] hover:-translate-y-1 active:translate-x-[6px] active:translate-y-[6px]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -77,7 +77,7 @@ export function IconButton({
     <button
       type={type}
       className={cn(
-        "inline-flex cursor-pointer items-center justify-center border-ink bg-white text-ink",
+        "inline-flex cursor-pointer items-center justify-center border-ink bg-surface text-ink",
         "transition-[translate,rotate] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:rotate-2",
         ICON_SIZES[size],
         className,

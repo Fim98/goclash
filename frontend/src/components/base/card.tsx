@@ -64,7 +64,7 @@ export function Card({ shadow = "mint", shadowSize = 8, className, style, childr
   return (
     <div
       className={cn(
-        "relative border-4 border-ink bg-white",
+        "relative border-4 border-ink bg-surface",
         SHADOWS[shadow][shadowSize],
         className,
       )}

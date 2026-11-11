@@ -26,9 +26,9 @@ const LEVEL_LABEL: Record<LevelFilter, string> = {
 };
 
 const LEVEL_STYLE: Record<LogLevel, string> = {
-  info: "bg-mint text-ink",
-  debug: "bg-white text-ink",
-  warn: "bg-sunny text-ink",
+  info: "bg-mint text-on-accent",
+  debug: "bg-surface text-ink",
+  warn: "bg-sunny text-on-accent",
   error: "bg-coral text-white",
 };
 

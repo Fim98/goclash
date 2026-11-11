@@ -29,7 +29,7 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
   const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-white text-ink">
+    <div className="flex h-dvh w-full flex-col bg-surface text-ink">
       <header className="flex h-11 flex-none items-center gap-3 border-b-4 border-ink pl-20 pr-4">
         <span className="text-[15px] font-black tracking-[-0.2px]">GoClash</span>
         <span className="text-[11px] font-bold">
@@ -37,7 +37,7 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
         </span>
         <span className="ml-auto">
           {status?.systemProxy ? (
-            <Tag tone="sunny" icon={<span aria-hidden className="size-2 bg-ink" />}>
+            <Tag tone="sunny" icon={<span aria-hidden className="size-2 bg-on-accent" />}>
               系统代理已接管
             </Tag>
           ) : null}
@@ -112,7 +112,7 @@ function NavItem({ label, icon, active, onClick }: NavItemProps) {
         "flex h-11 items-center gap-3 border-4 px-2.5 text-left text-[15px]",
         active
           ? "border-ink bg-coral font-black text-white shadow-[4px_4px_0_var(--color-mint)]"
-          : "border-transparent font-bold text-ink hover:bg-sunny",
+          : "border-transparent font-bold text-ink hover:bg-sunny hover:text-on-accent",
       )}
     >
       {icon}
@@ -124,11 +124,11 @@ function NavItem({ label, icon, active, onClick }: NavItemProps) {
 function KernelCard({ status }: { status: Status | null }) {
   const running = status !== null;
   return (
-    <div className="mt-auto border-2 border-ink bg-white p-3 shadow-[4px_4px_0_var(--color-mint)]">
+    <div className="mt-auto border-2 border-ink bg-surface p-3 shadow-[4px_4px_0_var(--color-mint)]">
       <div className="flex items-center gap-2 text-xs font-bold">
         <i
           aria-hidden
-          className={cn("size-2.5 border-2 border-ink", running ? "bg-mint" : "bg-white")}
+          className={cn("size-2.5 border-2 border-ink", running ? "bg-mint" : "bg-surface")}
         />
         {running ? "mihomo 运行中" : "内核未连接"}
       </div>

@@ -254,7 +254,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
                 type="button"
                 aria-label="刷新出口信息"
                 onClick={() => void refreshExit()}
-                className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-white transition-transform duration-300 hover:rotate-45"
+                className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-surface transition-transform duration-300 hover:rotate-45"
               >
                 <RefreshCw className="size-3" strokeWidth={2.8} />
               </button>
@@ -295,7 +295,7 @@ function Hero({ status, latest, onToggle }: HeroProps) {
       shadowSize={8}
       className={cn(
         "flex h-[220px] flex-none -rotate-1 items-center justify-between gap-6 px-7",
-        connected ? "bg-coral" : "bg-white",
+        connected ? "bg-coral text-on-accent" : "bg-surface",
       )}
     >
       <div className="flex min-w-0 flex-col gap-2">
@@ -349,7 +349,7 @@ function Hero({ status, latest, onToggle }: HeroProps) {
 function SpeedChip({ direction, value }: { direction: "down" | "up"; value: string }) {
   const Icon = direction === "down" ? ArrowDown : ArrowUp;
   return (
-    <span className="inline-flex flex-none items-center gap-1.5 border-2 border-ink bg-white px-2.5 py-1 text-xs font-black leading-none">
+    <span className="inline-flex flex-none items-center gap-1.5 border-2 border-ink bg-surface px-2.5 py-1 text-xs font-black leading-none text-ink">
       <Icon aria-hidden className="size-3.5" strokeWidth={3} />
       {value}
     </span>

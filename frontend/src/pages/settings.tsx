@@ -7,6 +7,7 @@ import { Segmented } from "@/components/base/segmented";
 import { AsyncPanel } from "@/components/base/state-panel";
 import { Switch } from "@/components/base/switch";
 import type { Gateway, ProxyMode, ServiceStatus, Settings } from "@/gateway/types";
+import { applyTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
@@ -182,7 +183,7 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
                   type="button"
                   disabled={serviceBusy}
                   onClick={() => void installService()}
-                  className="h-7 cursor-pointer border-2 border-ink bg-white px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-7 cursor-pointer border-2 border-ink bg-surface px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {serviceBusy ? "安装中…" : "安装服务"}
                 </button>
@@ -253,8 +254,12 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
           <Row label="主题">
             <Segmented
               value={settings.theme}
-              onChange={(theme) => void patch({ theme })}
-              disabledValues={["dark", "system"]}
+              onChange={(theme) => {
+                // Paint first, persist second: the window should not wait for
+                // a round trip to change colour.
+                applyTheme(theme);
+                void patch({ theme });
+              }}
               ariaLabel="主题"
               options={[
                 { value: "light", label: "浅色" },
@@ -347,7 +352,7 @@ function SettingsCard({
       <div className="flex flex-none items-center gap-2.5">
         <span
           aria-hidden
-          className="flex size-6 items-center justify-center border-2 border-ink"
+          className="flex size-6 items-center justify-center border-2 border-ink text-on-accent"
           style={{ background: `var(--color-${tone})` }}
         >
           {icon}

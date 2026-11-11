@@ -36,7 +36,7 @@ export function StatCard({
       </div>
       <div
         aria-hidden
-        className="flex size-9 flex-none items-center justify-center border-2 border-ink [&>svg]:size-[18px]"
+        className="flex size-9 flex-none items-center justify-center border-2 border-ink text-on-accent [&>svg]:size-[18px]"
         style={{ background: iconBackground }}
       >
         {icon}

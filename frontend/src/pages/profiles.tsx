@@ -221,7 +221,7 @@ function ProfileCard({
             {formatBytes(profile.usedBytes)} / {formatBytes(profile.totalBytes)}
           </span>
         </div>
-        <div className="flex h-3.5 items-center border-2 border-ink bg-white p-0.5">
+        <div className="flex h-3.5 items-center border-2 border-ink bg-surface p-0.5">
           <div className="h-full bg-coral" style={{ width: `${percent}%` }} />
         </div>
       </div>
@@ -399,7 +399,7 @@ function SmallButton({
       {...props}
       className={[
         "h-9 flex-none border-2 border-ink px-3.5 text-[11px]",
-        tone === "coral" ? "bg-coral font-black text-white" : "bg-white font-bold text-ink",
+        tone === "coral" ? "bg-coral font-black text-white" : "bg-surface font-bold text-ink",
         "cursor-pointer disabled:cursor-not-allowed disabled:opacity-40",
         className ?? "",
       ].join(" ")}

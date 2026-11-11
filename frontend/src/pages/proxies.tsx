@@ -25,10 +25,10 @@ interface ProxiesData {
 }
 
 const LATENCY_TONE: Record<LatencyTone, string> = {
-  mint: "bg-mint text-ink",
-  sunny: "bg-sunny text-ink",
-  peach: "bg-peach text-ink",
-  none: "bg-white text-ink",
+  mint: "bg-mint text-on-accent",
+  sunny: "bg-sunny text-on-accent",
+  peach: "bg-peach text-on-accent",
+  none: "bg-surface text-ink",
 };
 
 export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate: PageNavigate }) {
@@ -304,7 +304,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
           <Card
             shadow="mint"
             shadowSize={8}
-            className="flex h-[152px] flex-none -rotate-1 flex-col gap-2 bg-coral p-5"
+            className="flex h-[152px] flex-none -rotate-1 flex-col gap-2 bg-coral p-5 text-on-accent"
           >
             <Tag tone="white" className="self-start">
               当前出口
@@ -388,14 +388,14 @@ function NodeTile({
         "flex h-[46px] w-full items-center justify-between gap-2 px-3 text-left",
         selected
           ? "border-4 border-ink bg-coral text-white shadow-[4px_4px_0_var(--color-sunny)]"
-          : "border-[3px] border-ink bg-white text-ink transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:bg-sunny",
+          : "border-[3px] border-ink bg-surface text-ink transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:bg-sunny hover:text-on-accent",
       )}
     >
       <span className="truncate text-[13px] font-bold">{node.name}</span>
       <span
         className={cn(
           "flex-none border-2 border-ink px-1.5 py-0.5 text-[10px] font-black leading-none tabular-nums",
-          selected ? "bg-white text-ink" : LATENCY_TONE[latencyTone(node.latency)],
+          selected ? "bg-surface text-ink" : LATENCY_TONE[latencyTone(node.latency)],
         )}
       >
         {formatLatency(node.latency)}
@@ -420,7 +420,7 @@ function SortChip({
       onClick={onClick}
       className={cn(
         "h-8 cursor-pointer border-2 border-ink px-3 text-[11px] font-black transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5",
-        active ? "bg-sunny text-ink" : "bg-white text-ink",
+        active ? "bg-sunny text-on-accent" : "bg-surface text-ink",
       )}
     >
       {children}
@@ -447,7 +447,7 @@ function QuotaCard({ profile }: { profile: Profile | undefined }) {
       <div className="text-[11px] font-black tabular-nums">
         {profile ? `${formatBytes(profile.usedBytes)} / ${formatBytes(profile.totalBytes)}` : "—"}
       </div>
-      <div className="flex h-3.5 w-full items-center border-2 border-ink bg-white p-0.5">
+      <div className="flex h-3.5 w-full items-center border-2 border-ink bg-surface p-0.5">
         <div className="h-full bg-coral" style={{ width: `${percent}%` }} />
       </div>
       <p className="text-[10px] font-bold">

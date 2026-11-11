@@ -170,6 +170,25 @@ EXAMPLE COMPONENT PROMPTS:
 
 1. 做一个俏皮野兽派按钮：背景 #ff6b6b、白字、4px solid #000 边框、border-radius 0、900 字重 16px、padding 12px 24px、box-shadow 6px 6px 0 #4ecdc4、transform rotate(-2deg)。hover 时 translateY(-4px) rotate(3deg)、阴影换成 8px 8px 0 #ffe66d；active 时 translate(6px,6px) scale(0.95) rotate(0) 且阴影 none。transition 300ms cubic-bezier(0.34,1.56,0.64,1)。
 
+## 深色模式（实现补充）
+
+原稿只给了 light。实现时补了 dark 与「跟随系统」，做法不是给每个组件写 `dark:` 变体，而是**反转极性**：只换两个结构色，其余全部跟着走。
+
+| Token           | Light     | Dark      | 用途                                    |
+| --------------- | --------- | --------- | --------------------------------------- |
+| `--color-surface` | `#ffffff` | `#0b0b0b` | 页面与卡片填充                          |
+| `--color-ink`   | `#000000` | `#f4f1e8` | 边框、正文、反白块的填充                |
+| `--color-on-accent` | `#000000` | `#000000` | **固定**：压在珊瑚/薄荷/阳光/海沫/蜜桃上的文字与图标 |
+| 五支强调色      | 不变      | 不变      | 糖果色在近黑底上依然成立                |
+
+三条规则：
+
+1. **强调色容器内的文字永远用 on-accent**（黑）。否则深色下「阳光黄标签」会变成白字压黄底。浅色下 on-accent 与 ink 同值，观感不变。
+2. **压在 surface 上的文字用 ink**，它会自动反转。`bg-ink` 的反白块（选中分段、表头、MATCH 兜底行）在深色下变成浅色块 + 深色字，这是刻意的反转，不是错误。
+3. **不写 `dark:` 变体**。组件的颜色只允许来自这三个 token；一旦出现 `dark:bg-…`，说明有第四个颜色没有被归类。
+
+深色下阴影仍用五支强调色（彩色硬影在近黑底上更跳），只有原本用 ink 做的阴影会翻成浅色块——与反白块同一套逻辑。
+
 ## Similar Brands
 
 - **Neo-Brutalist** — 同一骨架，但正经版不旋转、阴影只用黑色

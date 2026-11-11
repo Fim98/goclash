@@ -1,12 +1,16 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
 import { createMockGateway } from "@/gateway/mock";
 import type { Gateway, ServiceState } from "@/gateway/types";
 
 describe("Settings page", () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+  });
+
   it("writes the system proxy switch through and updates the home hero", async () => {
     const base = createMockGateway();
     const updateSettings = vi.fn((patch: Parameters<Gateway["updateSettings"]>[0]) =>
@@ -103,14 +107,26 @@ describe("Settings page", () => {
     expect(screen.getByRole("switch", { name: "TUN 模式" })).toBeDisabled();
   });
 
-  it("keeps the theme options that are not implemented disabled", async () => {
+  it("switches to dark immediately and keeps the choice", async () => {
     render(<App gateway={createMockGateway()} />);
     await userEvent.click(screen.getByRole("button", { name: "设置" }));
     await screen.findByText("外观");
 
     expect(screen.getByRole("button", { name: "浅色" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "深色" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "跟随" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "深色" }));
+
+    // Painted before the settings round trip finishes.
+    expect(document.documentElement.dataset.theme).toBe("dark");
+
+    const nav = screen.getByRole("navigation", { name: "主导航" });
+    await userEvent.click(within(nav).getByRole("button", { name: "首页" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "设置" }));
+
+    expect(await screen.findByRole("button", { name: "深色" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("persists a toggle across page switches", async () => {

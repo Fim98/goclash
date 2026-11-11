@@ -4,6 +4,8 @@ import (
 	"context"
 	"embed"
 	"log"
+	"os/exec"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -22,6 +24,20 @@ var assets embed.FS
 // The window geometry and background match the design canvas (1440×900, white,
 // no outer chrome of our own): macOS draws the traffic lights inset, and the
 // app chrome starts below them.
+// prefersDarkWindow resolves the saved theme for the native window colour.
+// "system" asks macOS once at launch; a running app that switches appearance
+// keeps its window colour until the next start (the webview repaints instantly).
+func prefersDarkWindow(theme string) bool {
+	switch theme {
+	case "dark":
+		return true
+	case "system":
+		out, err := exec.Command("defaults", "read", "-g", "AppleInterfaceStyle").Output()
+		return err == nil && strings.Contains(string(out), "Dark")
+	}
+	return false
+}
+
 func main() {
 	// One gateway for every window: kernel data, settings and profiles live on
 	// the Go side, so the main window and the tray popup can never disagree.
@@ -49,6 +65,13 @@ func main() {
 	defer stopEvents()
 	gateway.Start(events)
 
+	// The webview paints the theme itself; the window behind it must match or a
+	// dark window flashes white while the bundle boots.
+	background := application.NewRGB(255, 255, 255)
+	if prefersDarkWindow(gateway.Settings().Theme) {
+		background = application.NewRGB(11, 11, 11)
+	}
+
 	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   "main",
 		Title:  "GoClash",
@@ -61,11 +84,11 @@ func main() {
 			Backdrop:                application.MacBackdropNormal,
 			TitleBar:                application.MacTitleBarHiddenInset,
 		},
-		BackgroundColour: application.NewRGB(255, 255, 255),
+		BackgroundColour: background,
 		URL:              "/",
 	})
 
-	tray := setupTray(app, mainWindow)
+	tray := setupTray(app, mainWindow, background)
 	go runTrayLabel(events, tray, gateway)
 
 	if err := app.Run(); err != nil {

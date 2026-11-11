@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils";
 export type TagTone = "white" | "ink" | "coral" | "mint" | "sunny" | "seafoam" | "peach";
 
 const TONES: Record<TagTone, string> = {
-  white: "bg-white text-ink",
-  ink: "bg-ink text-white",
+  white: "bg-surface text-ink",
+  ink: "bg-ink text-surface",
   coral: "bg-coral text-white",
-  mint: "bg-mint text-ink",
-  sunny: "bg-sunny text-ink",
-  seafoam: "bg-seafoam text-ink",
-  peach: "bg-peach text-ink",
+  mint: "bg-mint text-on-accent",
+  sunny: "bg-sunny text-on-accent",
+  seafoam: "bg-seafoam text-on-accent",
+  peach: "bg-peach text-on-accent",
 };
 
 export interface TagProps {
@@ -58,7 +58,7 @@ export interface ChipProps {
 export function Chip({ active = false, onClick, className, children }: ChipProps) {
   const base = cn(
     "inline-flex h-[34px] flex-none items-center whitespace-nowrap border-2 border-ink px-3.5 text-xs font-bold",
-    active ? "bg-ink text-white" : "bg-white text-ink",
+    active ? "bg-ink text-surface" : "bg-surface text-ink",
     onClick &&
       "cursor-pointer transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5",
     className,

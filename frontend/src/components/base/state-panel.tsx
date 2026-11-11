@@ -70,7 +70,7 @@ function IconBox({ children, tone }: { children: ReactNode; tone: string }) {
 export function AsyncPanel({ state, error, empty, children, className }: AsyncPanelProps) {
   if (state === "loading") {
     return (
-      <div className={cn("flex flex-1 flex-col border-4 border-ink bg-white", className)}>
+      <div className={cn("flex flex-1 flex-col border-4 border-ink bg-surface", className)}>
         <Centered>
           <Skeleton />
         </Centered>
@@ -82,7 +82,7 @@ export function AsyncPanel({ state, error, empty, children, className }: AsyncPa
     return (
       <div
         className={cn(
-          "flex flex-1 flex-col border-4 border-ink bg-white shadow-[8px_8px_0_var(--color-coral)]",
+          "flex flex-1 flex-col border-4 border-ink bg-surface shadow-[8px_8px_0_var(--color-coral)]",
           className,
         )}
       >
@@ -100,7 +100,7 @@ export function AsyncPanel({ state, error, empty, children, className }: AsyncPa
     return (
       <div
         className={cn(
-          "flex flex-1 flex-col border-4 border-ink bg-white shadow-[8px_8px_0_var(--color-mint)]",
+          "flex flex-1 flex-col border-4 border-ink bg-surface shadow-[8px_8px_0_var(--color-mint)]",
           className,
         )}
       >
