@@ -57,3 +57,7 @@ coverage.out
 # OS
 .DS_Store
 Thumbs.db
+
+# Go build output (module name binaries)
+/changeme
+/goclash
