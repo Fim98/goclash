@@ -5,6 +5,7 @@ import type { Gateway } from "@/gateway/types";
 import { ConnectionsPage } from "@/pages/connections";
 import { HomePage } from "@/pages/home";
 import { LogsPage } from "@/pages/logs";
+import { ProxiesPage } from "@/pages/proxies";
 import { RulesPage } from "@/pages/rules";
 
 export type PageId =
@@ -40,6 +41,7 @@ export const PAGES: PageDefinition[] = [
     label: "代理",
     sub: "8 个策略组 · 126 个节点 · 延迟检测 300s",
     icon: <Globe className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway, navigate) => <ProxiesPage gateway={gateway} navigate={navigate} />,
   },
   {
     id: "profiles",

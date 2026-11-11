@@ -52,6 +52,7 @@ export function createMockGateway(): Gateway {
     autoUpdateIntervalHours: 12,
     autoSwitchLowestLatency: true,
     proxyDownload: false,
+    chainedProxy: false,
     launchAtLogin: true,
     silentStart: false,
     closeAction: "tray",
@@ -332,14 +333,33 @@ export function createMockGateway(): Gateway {
 
     async select(groupId, nodeName) {
       const group = groups.find((candidate) => candidate.id === groupId);
-      if (group) group.selected = nodeName;
+      if (!group) return;
+      group.selected = nodeName;
+      // The main select group is the exit; keep the status card in sync so the
+      // hero and the current-exit card follow the pick immediately.
+      const node = group.nodes.find((candidate) => candidate.name === nodeName);
+      if (groupId === "proxy" && node) {
+        status.exitNode = node.name;
+        status.exitLatency = node.latency;
+      }
     },
 
     async testGroup(groupId) {
+      await sleep(600);
+      const group = groups.find((candidate) => candidate.id === groupId);
+      group?.nodes.forEach((node) => {
+        if (node.latency !== null) node.latency = Math.max(20, node.latency - 3);
+      });
       pushLog({ time: clock(), level: "info", message: `测速完成 · 策略组 ${groupId}` });
     },
 
     async testAllGroups() {
+      await sleep(700);
+      groups.forEach((group) => {
+        group.nodes.forEach((node) => {
+          if (node.latency !== null) node.latency = Math.max(20, node.latency - 3);
+        });
+      });
       pushLog({ time: clock(), level: "info", message: "全部策略组测速完成" });
     },
 
@@ -448,6 +468,10 @@ export function createMockGateway(): Gateway {
 function clock(date = new Date()): string {
   const pad = (value: number, length = 2) => String(value).padStart(length, "0");
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export const MOCK_META = { appVersion: APP_VERSION, coreVersion: CORE_VERSION };

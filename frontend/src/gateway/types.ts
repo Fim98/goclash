@@ -105,6 +105,8 @@ export interface Settings {
   autoUpdateIntervalHours: 6 | 12 | 24;
   autoSwitchLowestLatency: boolean;
   proxyDownload: boolean;
+  /** Chained proxies: traffic goes through two hops; slower but harder to trace. */
+  chainedProxy: boolean;
   launchAtLogin: boolean;
   silentStart: boolean;
   closeAction: "tray" | "quit";

@@ -15,10 +15,11 @@ describe("App shell", () => {
   it("switches pages from the sidebar", async () => {
     render(<App />);
 
-    await userEvent.click(screen.getByRole("button", { name: /代理/ }));
+    await userEvent.click(screen.getByRole("button", { name: "代理" }));
 
     expect(screen.getByRole("heading", { name: "代理" })).toBeInTheDocument();
-    expect(screen.getByText(/本页施工中/)).toBeInTheDocument();
+    expect(await screen.findByText("节点选择")).toBeInTheDocument();
+    expect(screen.queryByText(/本页施工中/)).not.toBeInTheDocument();
   });
 
   it("shows the kernel status once the gateway answers", async () => {
