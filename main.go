@@ -29,11 +29,14 @@ func main() {
 			Handler: application.AssetFileServerFS(assets),
 		},
 		Mac: application.MacOptions{
+			// Closing the main window keeps the app alive in the menu bar; the
+			// tray menu carries the explicit quit.
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:   "main",
 		Title:  "GoClash",
 		Width:  1440,
 		Height: 900,
@@ -47,6 +50,8 @@ func main() {
 		BackgroundColour: application.NewRGB(255, 255, 255),
 		URL:              "/",
 	})
+
+	setupTray(app, mainWindow)
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

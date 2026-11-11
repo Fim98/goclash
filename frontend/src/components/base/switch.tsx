@@ -1,13 +1,20 @@
 import { cn } from "@/lib/utils";
 
+export type SwitchSize = "sm" | "md" | "xl";
+
+const SIZES: Record<SwitchSize, { box: string; knob: string }> = {
+  // rows and toolbars
+  sm: { box: "h-[26px] w-[46px] p-[3px]", knob: "size-4 bg-ink" },
+  // the tray popup's hero switch
+  md: { box: "h-[34px] w-[64px] p-[4px]", knob: "size-[22px] bg-ink" },
+  // the home hero
+  xl: { box: "h-[66px] w-[132px] p-[5px]", knob: "size-12 border-4 border-ink bg-white" },
+};
+
 export interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  /**
-   * sm (46×26) sits in rows and toolbars; xl (132×66) is the hero control on
-   * the home screen.
-   */
-  size?: "sm" | "xl";
+  size?: SwitchSize;
   /** Accessible name; required because the control renders no visible label. */
   label: string;
   className?: string;
@@ -21,7 +28,7 @@ export interface SwitchProps {
  * breaking the control.
  */
 export function Switch({ checked, onCheckedChange, size = "sm", label, className }: SwitchProps) {
-  const isLarge = size === "xl";
+  const sizing = SIZES[size];
   return (
     <button
       type="button"
@@ -30,16 +37,13 @@ export function Switch({ checked, onCheckedChange, size = "sm", label, className
       aria-label={label}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "inline-flex cursor-pointer items-center border-4 border-ink transition-colors",
-        isLarge ? "h-[66px] w-[132px] gap-0 p-[5px]" : "h-[26px] w-[46px] gap-0 p-[3px]",
+        "inline-flex cursor-pointer items-center gap-0 border-4 border-ink transition-colors",
+        sizing.box,
         checked ? "justify-end bg-mint" : "justify-start bg-white",
         className,
       )}
     >
-      <span
-        aria-hidden
-        className={cn("block", isLarge ? "size-12 border-4 border-ink bg-white" : "size-4 bg-ink")}
-      />
+      <span aria-hidden className={cn("block", sizing.knob)} />
     </button>
   );
 }
