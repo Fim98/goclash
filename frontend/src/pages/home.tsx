@@ -87,6 +87,16 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
 
   const latest = samples.length > 0 ? samples[samples.length - 1] : undefined;
 
+  async function refreshExit() {
+    try {
+      setStatus(await gateway.refreshExitIP());
+    } catch {
+      // The lookup degrades to an empty card; a status refresh still updates
+      // the kernel-side parts.
+      await refresh();
+    }
+  }
+
   async function toggleSystemProxy() {
     if (!status) return;
     const next = !status.systemProxy;
@@ -243,7 +253,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
               <button
                 type="button"
                 aria-label="刷新出口信息"
-                onClick={() => void refresh()}
+                onClick={() => void refreshExit()}
                 className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-white transition-transform duration-300 hover:rotate-45"
               >
                 <RefreshCw className="size-3" strokeWidth={2.8} />
@@ -252,13 +262,15 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
             <div className="text-[23px] font-black leading-[28px] tracking-[-0.8px]">
               {status.exitIp || "—"}
             </div>
-            <div className="text-[10px] font-bold tracking-[0.3px]">
-              {status.exitAsn || "出口地区未获取"}
-            </div>
+            {status.exitAsn ? (
+              <div className="text-[10px] font-bold tracking-[0.3px]">{status.exitAsn}</div>
+            ) : status.exitIp ? null : (
+              <div className="text-[10px] font-bold tracking-[0.3px]">出口地区未获取</div>
+            )}
             {status.exitRegion ? (
               <div className="mt-auto flex gap-2">
                 <Tag tone="seafoam">{status.exitRegion}</Tag>
-                <Tag tone="sunny">{status.nativeIp ? "原生 IP" : "中转 IP"}</Tag>
+                {status.nativeIp ? <Tag tone="sunny">原生 IP</Tag> : null}
               </div>
             ) : null}
           </Card>

@@ -68,6 +68,7 @@ export function createMockGateway(): Gateway {
     theme: "light",
     accent: "coral",
     menuBarLatency: true,
+    exitIPEndpoint: "https://api.ip.sb/geoip",
   };
 
   const groups: ProxyGroup[] = [
@@ -466,6 +467,10 @@ export function createMockGateway(): Gateway {
 
     async settings() {
       return { ...settings };
+    },
+
+    async refreshExitIP() {
+      return { ...status };
     },
 
     async serviceStatus(): Promise<ServiceStatus> {

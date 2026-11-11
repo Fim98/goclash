@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"changeme/internal/exitip"
 	"changeme/internal/mihomo"
 	"changeme/internal/service"
 )
@@ -133,6 +134,10 @@ func newTestGateway(t *testing.T, srv *httptest.Server) *Gateway {
 	g.client = mihomo.New(g.settings.ControllerAddr, "")
 	g.sysproxy = &fakeProxy{}
 	g.services = &fakeService{state: service.StateMissing}
+	// No test may reach the network: the default resolver reports "offline".
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		return exitip.Info{}, fmt.Errorf("offline")
+	}
 	return g
 }
 
@@ -707,5 +712,143 @@ func TestKernelRefusalIsNotPersisted(t *testing.T) {
 	}
 	if g.Settings().Mode != "rule" {
 		t.Fatalf("mode = %q, want the old value", g.Settings().Mode)
+	}
+}
+
+func TestStatusExposesTheCachedExit(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		return exitip.Info{IP: "118.163.198.44", Country: "TW", ASN: 3462, Org: "Chunghwa Telecom"}, nil
+	}
+
+	g.refreshExit(context.Background())
+	status, err := g.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.ExitIP != "118.163.198.44" {
+		t.Fatalf("exit ip = %q", status.ExitIP)
+	}
+	if status.ExitRegion != "中国台湾" {
+		t.Fatalf("region = %q", status.ExitRegion)
+	}
+	if status.ExitASN != "AS3462 · CHUNGHWA TELECOM" {
+		t.Fatalf("asn line = %q", status.ExitASN)
+	}
+}
+
+func TestExitIsEmptyWhenTheProxyIsOff(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		return exitip.Info{IP: "118.163.198.44", Country: "TW"}, nil
+	}
+	g.settings.SystemProxy = false
+
+	g.refreshExit(context.Background())
+	status, _ := g.Status(context.Background())
+	if status.ExitIP != "" || status.ExitRegion != "" {
+		t.Fatalf("status = %+v", status)
+	}
+}
+
+func TestExitIsSkippedWithoutAnEndpoint(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	called := false
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		called = true
+		return exitip.Info{IP: "1.2.3.4"}, nil
+	}
+	g.settings.ExitIPEndpoint = ""
+
+	g.refreshExit(context.Background())
+	if called {
+		t.Fatal("lookup should be skipped when the endpoint is empty")
+	}
+	if _, ok := g.exitSnapshot(); ok {
+		t.Fatal("cache should stay empty")
+	}
+}
+
+func TestRefreshExitIPReturnsFreshStatus(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	calls := 0
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		calls++
+		return exitip.Info{IP: "203.0.113.9", Country: "JP"}, nil
+	}
+
+	status, err := g.RefreshExitIP(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || status.ExitIP != "203.0.113.9" || status.ExitRegion != "日本" {
+		t.Fatalf("calls=%d status=%+v", calls, status)
+	}
+}
+
+func TestLookupFailureDegradesToAnEmptyCard(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		return exitip.Info{}, fmt.Errorf("dial tcp: connection refused")
+	}
+
+	status, err := g.RefreshExitIP(context.Background())
+	if err != nil {
+		t.Fatalf("a lookup failure must not surface: %v", err)
+	}
+	if status.ExitIP != "" {
+		t.Fatalf("exit ip = %q", status.ExitIP)
+	}
+}
+
+func TestSelectInvalidatesTheCachedExit(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	calls := 0
+	g.lookupExit = func(context.Context) (exitip.Info, error) {
+		calls++
+		if calls == 1 {
+			return exitip.Info{IP: "118.163.198.44", Country: "TW"}, nil
+		}
+		return exitip.Info{}, fmt.Errorf("offline")
+	}
+	g.refreshExit(context.Background())
+	if _, ok := g.exitSnapshot(); !ok {
+		t.Fatal("expected a cached exit")
+	}
+
+	if err := g.Select(context.Background(), "节点选择", "日本 01"); err != nil {
+		t.Fatal(err)
+	}
+	// The cache is dropped synchronously, so a status read cannot show the old
+	// country even before the background refresh finishes.
+	if _, ok := g.exitSnapshot(); ok {
+		t.Fatal("cache should be dropped after switching nodes")
+	}
+}
+
+func TestRegionNameMapping(t *testing.T) {
+	cases := map[string]string{
+		"HK": "中国香港", "TW": "中国台湾", "MO": "中国澳门", "JP": "日本",
+		"us": "美国", "GB": "英国", "ZZ": "ZZ", "": "",
+	}
+	for code, want := range cases {
+		if got := regionName(code); got != want {
+			t.Fatalf("regionName(%q) = %q, want %q", code, got, want)
+		}
+	}
+}
+
+func TestExitRefreshDelayBacksOff(t *testing.T) {
+	if got := exitRefreshDelay(true); got != 5*time.Minute {
+		t.Fatalf("healthy delay = %v", got)
+	}
+	if got := exitRefreshDelay(false); got != 30*time.Second {
+		t.Fatalf("retry delay = %v", got)
 	}
 }

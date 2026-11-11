@@ -122,6 +122,8 @@ export interface Settings {
   theme: "light" | "dark" | "system";
   accent: "coral" | "mint" | "sunny";
   menuBarLatency: boolean;
+  /** Endpoint used for the exit IP lookup; empty disables it. */
+  exitIPEndpoint: string;
 }
 
 /**
@@ -145,6 +147,8 @@ export interface Gateway {
   testAllGroups(): Promise<void>;
   setMode(mode: ProxyMode): Promise<void>;
   setSystemProxy(on: boolean): Promise<void>;
+  /** Re-queries the exit IP through the kernel and returns the fresh status. */
+  refreshExitIP(): Promise<Status>;
   /** Whether the launchd daemon is installed; TUN needs it running. */
   serviceStatus(): Promise<ServiceStatus>;
   /** Writes the daemon and boots it; prompts for admin rights. */

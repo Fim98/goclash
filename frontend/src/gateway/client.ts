@@ -24,6 +24,7 @@ export function createWailsGateway(): Gateway {
     testAllGroups: () => call("TestAllGroups"),
     setMode: (mode) => call("SetMode", mode),
     setSystemProxy: (on) => call("SetSystemProxy", on),
+    refreshExitIP: () => call("RefreshExitIP"),
     serviceStatus: () => call("ServiceStatus"),
     installService: () => call("InstallService"),
     removeService: () => call("RemoveService"),

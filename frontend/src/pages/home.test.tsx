@@ -61,6 +61,49 @@ describe("Home page", () => {
     expect(screen.queryByText("香港 · IPLC 02")).not.toBeInTheDocument();
   });
 
+  it("re-queries the exit IP from the card's refresh button", async () => {
+    const base = createMockGateway();
+    const refreshExitIP = vi.fn(() => base.refreshExitIP());
+    const gateway: Gateway = { ...base, refreshExitIP };
+
+    render(<App gateway={gateway} />);
+    await screen.findByText("香港 · IPLC 02");
+
+    await userEvent.click(screen.getByRole("button", { name: "刷新出口信息" }));
+
+    expect(refreshExitIP).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the native badge when the lookup cannot tell", async () => {
+    const base = createMockGateway();
+    const status = await base.status();
+    const gateway: Gateway = {
+      ...base,
+      status: () =>
+        Promise.resolve({ ...status, exitAsn: "", exitRegion: "中国台湾", nativeIp: false }),
+    };
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByText("中国台湾")).toBeInTheDocument();
+    expect(screen.queryByText("原生 IP")).not.toBeInTheDocument();
+    expect(screen.queryByText("中转 IP")).not.toBeInTheDocument();
+  });
+
+  it("says the region is unknown when no lookup succeeded", async () => {
+    const base = createMockGateway();
+    const status = await base.status();
+    const gateway: Gateway = {
+      ...base,
+      status: () =>
+        Promise.resolve({ ...status, exitIp: "", exitAsn: "", exitRegion: "", nativeIp: false }),
+    };
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByText("出口地区未获取")).toBeInTheDocument();
+  });
+
   it("streams traffic into stat cards with one decimal after the first tick", async () => {
     vi.useFakeTimers();
 

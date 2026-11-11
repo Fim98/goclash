@@ -22,6 +22,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"changeme/internal/exitip"
 	"changeme/internal/mihomo"
 	"changeme/internal/service"
 	"changeme/internal/sysproxy"
@@ -136,6 +137,8 @@ type Settings struct {
 
 	// Not surfaced in the UI yet: where the controller lives and which binary
 	// to spawn for the core.
+	// Where the exit IP is looked up. Empty disables the query entirely.
+	ExitIPEndpoint   string `json:"exitIPEndpoint,omitempty"`
 	ControllerAddr   string `json:"controllerAddr,omitempty"`
 	ControllerSecret string `json:"controllerSecret,omitempty"`
 	CorePath         string `json:"corePath,omitempty"`
@@ -175,6 +178,12 @@ type Gateway struct {
 	activeID     string
 	started      time.Time
 	connectionNo atomic.Int64
+
+	exitMu sync.Mutex
+	exit   exitip.Info
+	exitOK bool
+	// lookupExit is the seam tests replace so no request ever leaves the box.
+	lookupExit func(context.Context) (exitip.Info, error)
 }
 
 func NewGateway() *Gateway {
@@ -190,6 +199,7 @@ func newGatewayAt(dir string) *Gateway {
 	_ = os.MkdirAll(filepath.Join(dir, "profiles"), 0o755)
 
 	g := &Gateway{dir: dir, started: time.Now(), sysproxy: sysproxy.New(), services: service.New()}
+	g.lookupExit = g.lookupExitThroughKernel
 	g.settings = g.loadSettings()
 	g.client = mihomo.New(g.settings.ControllerAddr, g.settings.ControllerSecret)
 	g.loadProfiles()
@@ -219,7 +229,7 @@ func (g *Gateway) Status(ctx context.Context) (Status, error) {
 	exitNode, latency := currentExit(proxies, configs.Mode)
 	settings := g.Settings()
 
-	return Status{
+	status := Status{
 		Connected:     settings.SystemProxy,
 		Mode:          configs.Mode,
 		SystemProxy:   settings.SystemProxy,
@@ -229,7 +239,24 @@ func (g *Gateway) Status(ctx context.Context) (Status, error) {
 		UptimeSeconds: int(time.Since(g.started).Seconds()),
 		ExitNode:      exitNode,
 		ExitLatency:   latency,
-	}, nil
+	}
+
+	// The lookup result is cached: Status is called on every page load and
+	// must never wait for a third-party request.
+	if info, ok := g.exitSnapshot(); ok && settings.SystemProxy {
+		status.ExitIP = info.IP
+		status.ExitASN = info.Label()
+		status.ExitRegion = regionName(info.Country)
+		status.NativeIP = info.Native
+	}
+	return status, nil
+}
+
+// RefreshExitIP re-queries the endpoint and returns the fresh status. The UI's
+// refresh button uses it; failures degrade to an empty IP rather than an error.
+func (g *Gateway) RefreshExitIP(ctx context.Context) (Status, error) {
+	g.refreshExit(ctx)
+	return g.Status(ctx)
 }
 
 func (g *Gateway) Groups(ctx context.Context) ([]ProxyGroup, error) {
@@ -265,7 +292,11 @@ func (g *Gateway) Groups(ctx context.Context) ([]ProxyGroup, error) {
 }
 
 func (g *Gateway) Select(ctx context.Context, group, node string) error {
-	return g.client.Select(ctx, group, node)
+	if err := g.client.Select(ctx, group, node); err != nil {
+		return err
+	}
+	g.invalidateExit()
+	return nil
 }
 
 // TestGroup re-probes every node of one group; the kernel records the history.
@@ -312,7 +343,12 @@ func (g *Gateway) SetSystemProxy(ctx context.Context, on bool) error {
 		g.log("error", "系统代理开关失败："+err.Error())
 		return err
 	}
-	return g.updateSettings(func(s *Settings) { s.SystemProxy = on })
+	if err := g.updateSettings(func(s *Settings) { s.SystemProxy = on }); err != nil {
+		return err
+	}
+	// Turning the proxy on (or off) changes what the exit query would answer.
+	g.invalidateExit()
+	return nil
 }
 
 func (g *Gateway) applySystemProxy(ctx context.Context, on bool) error {
@@ -688,6 +724,7 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.pumpLogs(ctx)
 	go g.countConnections(ctx)
 	go g.autoUpdateProfiles(ctx)
+	go g.pumpExitIP(ctx)
 
 	go g.applyOnStart(ctx)
 
@@ -866,6 +903,138 @@ func (g *Gateway) countConnections(ctx context.Context) {
 	}
 }
 
+// --- exit IP ---------------------------------------------------------------
+
+// lookupExitThroughKernel queries the endpoint through the mixed port so the
+// answer is the address the world sees, not the local one.
+func (g *Gateway) lookupExitThroughKernel(ctx context.Context) (exitip.Info, error) {
+	settings := g.Settings()
+	client := exitip.New(settings.ExitIPEndpoint, fmt.Sprintf("127.0.0.1:%d", settings.MixedPort))
+	return client.Lookup(ctx)
+}
+
+func (g *Gateway) refreshExit(ctx context.Context) {
+	settings := g.Settings()
+	if !settings.SystemProxy || strings.TrimSpace(settings.ExitIPEndpoint) == "" {
+		g.setExit(exitip.Info{}, false)
+		return
+	}
+	lookup := g.lookupExit
+	if lookup == nil {
+		lookup = g.lookupExitThroughKernel
+	}
+	info, err := lookup(ctx)
+	if err != nil {
+		g.setExit(exitip.Info{}, false)
+		return
+	}
+	g.setExit(info, true)
+}
+
+func (g *Gateway) setExit(info exitip.Info, ok bool) {
+	g.exitMu.Lock()
+	defer g.exitMu.Unlock()
+	g.exit, g.exitOK = info, ok
+}
+
+func (g *Gateway) exitSnapshot() (exitip.Info, bool) {
+	g.exitMu.Lock()
+	defer g.exitMu.Unlock()
+	return g.exit, g.exitOK
+}
+
+// invalidateExit drops the cached answer (the exit just changed) and refills it
+// in the background; the card shows — instead of a stale country meanwhile.
+func (g *Gateway) invalidateExit() {
+	g.setExit(exitip.Info{}, false)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		g.refreshExit(ctx)
+	}()
+}
+
+// pumpExitIP refreshes the cached answer. A failed lookup retries quickly: at
+// startup the kernel is often still booting, and waiting five minutes for the
+// card to fill in would look broken.
+func (g *Gateway) pumpExitIP(ctx context.Context) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			g.refreshExit(ctx)
+			_, ok := g.exitSnapshot()
+			timer.Reset(exitRefreshDelay(ok))
+		}
+	}
+}
+
+func exitRefreshDelay(ok bool) time.Duration {
+	if ok {
+		return 5 * time.Minute
+	}
+	return 30 * time.Second
+}
+
+// regionName maps ISO codes to the names the design uses. HK/MO/TW are written
+// the way Chinese law requires; unlisted codes fall through as-is.
+func regionName(code string) string {
+	switch strings.ToUpper(code) {
+	case "HK":
+		return "中国香港"
+	case "MO":
+		return "中国澳门"
+	case "TW":
+		return "中国台湾"
+	case "CN":
+		return "中国大陆"
+	case "JP":
+		return "日本"
+	case "SG":
+		return "新加坡"
+	case "KR":
+		return "韩国"
+	case "US":
+		return "美国"
+	case "GB", "UK":
+		return "英国"
+	case "DE":
+		return "德国"
+	case "FR":
+		return "法国"
+	case "CA":
+		return "加拿大"
+	case "AU":
+		return "澳大利亚"
+	case "NL":
+		return "荷兰"
+	case "RU":
+		return "俄罗斯"
+	case "IN":
+		return "印度"
+	case "TR":
+		return "土耳其"
+	case "MY":
+		return "马来西亚"
+	case "TH":
+		return "泰国"
+	case "VN":
+		return "越南"
+	case "PH":
+		return "菲律宾"
+	case "ID":
+		return "印度尼西亚"
+	case "AE":
+		return "阿联酋"
+	case "BR":
+		return "巴西"
+	}
+	return strings.ToUpper(code)
+}
+
 // --- helpers ---------------------------------------------------------------
 
 func (g *Gateway) emit(name string, payload any) {
@@ -997,6 +1166,7 @@ func defaultSettings() Settings {
 		Accent:                 "coral",
 		MenuBarLatency:         true,
 		ControllerAddr:         "127.0.0.1:9090",
+		ExitIPEndpoint:         "https://api.ip.sb/geoip",
 	}
 }
 
