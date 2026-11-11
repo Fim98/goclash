@@ -124,6 +124,16 @@ export interface Settings {
   menuBarLatency: boolean;
 }
 
+/**
+ * State of the privileged daemon that owns the core when TUN is on.
+ * "unsupported" means the platform has no implementation at all.
+ */
+export type ServiceState = "missing" | "installed" | "running" | "unsupported";
+
+export interface ServiceStatus {
+  state: ServiceState;
+}
+
 export type GatewayStream = "traffic" | "log";
 export type StreamHandler = (event: TrafficSample | LogLine) => void;
 
@@ -135,6 +145,11 @@ export interface Gateway {
   testAllGroups(): Promise<void>;
   setMode(mode: ProxyMode): Promise<void>;
   setSystemProxy(on: boolean): Promise<void>;
+  /** Whether the launchd daemon is installed; TUN needs it running. */
+  serviceStatus(): Promise<ServiceStatus>;
+  /** Writes the daemon and boots it; prompts for admin rights. */
+  installService(): Promise<void>;
+  removeService(): Promise<void>;
   /** Best-effort kernel restart; resolves once the core answers again. */
   restartCore(): Promise<void>;
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"changeme/internal/mihomo"
+	"changeme/internal/service"
 )
 
 // fakeKernel is a mihomo controller good enough for the gateway's calls.
@@ -21,6 +22,7 @@ type fakeKernel struct {
 	mu          sync.Mutex
 	mode        string
 	selectorNow string
+	rejectPatch bool
 	patches     []map[string]any
 	selects     map[string]string
 	reloads     []string
@@ -40,7 +42,14 @@ func newKernel(t *testing.T) (*httptest.Server, *fakeKernel) {
 			var patch map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&patch)
 			state.mu.Lock()
+			reject := state.rejectPatch
 			state.patches = append(state.patches, patch)
+			state.mu.Unlock()
+			if reject {
+				http.Error(w, `{"message":"tun: operation not permitted"}`, http.StatusInternalServerError)
+				return
+			}
+			state.mu.Lock()
 			if mode, ok := patch["mode"].(string); ok {
 				state.mode = mode
 			}
@@ -123,6 +132,7 @@ func newTestGateway(t *testing.T, srv *httptest.Server) *Gateway {
 	g.settings.ControllerAddr = strings.TrimPrefix(srv.URL, "http://")
 	g.client = mihomo.New(g.settings.ControllerAddr, "")
 	g.sysproxy = &fakeProxy{}
+	g.services = &fakeService{state: service.StateMissing}
 	return g
 }
 
@@ -155,6 +165,56 @@ func (f *fakeProxy) Disable(context.Context) error {
 		return fmt.Errorf("networksetup 拒绝了请求")
 	}
 	f.enabled, f.port = false, 0
+	return nil
+}
+
+// fakeService stands in for launchd.
+type fakeService struct {
+	mu         sync.Mutex
+	state      service.State
+	fail       bool
+	installCfg service.Config
+	installs   int
+	uninstalls int
+	kickstarts int
+}
+
+func (f *fakeService) Status(context.Context) (service.State, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.state, nil
+}
+
+func (f *fakeService) Install(_ context.Context, cfg service.Config) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.fail {
+		return fmt.Errorf("已取消管理员授权")
+	}
+	f.installs++
+	f.installCfg = cfg
+	f.state = service.StateRunning
+	return nil
+}
+
+func (f *fakeService) Uninstall(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.fail {
+		return fmt.Errorf("卸载失败")
+	}
+	f.uninstalls++
+	f.state = service.StateMissing
+	return nil
+}
+
+func (f *fakeService) Kickstart(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.fail {
+		return fmt.Errorf("kickstart 失败")
+	}
+	f.kickstarts++
 	return nil
 }
 
@@ -527,5 +587,125 @@ func TestTrayLabelFollowsTheSettingAndTheKernel(t *testing.T) {
 	srv.Close()
 	if got := trayLabel(context.Background(), g); got != "" {
 		t.Fatalf("label with the kernel down = %q", got)
+	}
+}
+
+func TestTunRequiresThePrivilegedService(t *testing.T) {
+	srv, state := newKernel(t)
+	g := newTestGateway(t, srv)
+
+	_, err := g.UpdateSettings(context.Background(), map[string]any{"tun": true})
+	if err == nil || !strings.Contains(err.Error(), "系统服务") {
+		t.Fatalf("err = %v", err)
+	}
+	if g.Settings().Tun {
+		t.Fatal("a refused TUN must not be persisted")
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if len(state.patches) != 0 {
+		t.Fatalf("kernel should not be touched: %+v", state.patches)
+	}
+}
+
+func TestTunPassesWhenTheServiceRuns(t *testing.T) {
+	srv, state := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.services.(*fakeService).state = service.StateRunning
+
+	next, err := g.UpdateSettings(context.Background(), map[string]any{"tun": true})
+	if err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+	if !next.Tun || !g.Settings().Tun {
+		t.Fatal("TUN should be saved once the daemon is running")
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	last := state.patches[len(state.patches)-1]
+	tun, _ := last["tun"].(map[string]any)
+	if tun["enable"] != true {
+		t.Fatalf("kernel patch = %+v", last)
+	}
+}
+
+func TestInstallServiceHandsOverTheActiveProfile(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.settings.CorePath = "/usr/local/bin/mihomo"
+	g.profiles = []Profile{{ID: "p1", File: filepath.Join(g.dir, "profiles", "p1.yaml")}}
+	g.activeID = "p1"
+
+	if err := g.InstallService(context.Background()); err != nil {
+		t.Fatalf("InstallService: %v", err)
+	}
+	fake := g.services.(*fakeService)
+	if fake.installs != 1 {
+		t.Fatalf("installs = %d", fake.installs)
+	}
+	if fake.installCfg.CorePath != "/usr/local/bin/mihomo" {
+		t.Fatalf("core path = %q", fake.installCfg.CorePath)
+	}
+	if fake.installCfg.ConfigFile != filepath.Join(g.dir, "profiles", "p1.yaml") {
+		t.Fatalf("config file = %q", fake.installCfg.ConfigFile)
+	}
+	if fake.installCfg.LogPath != filepath.Join(g.dir, "logs", "core.log") {
+		t.Fatalf("log path = %q", fake.installCfg.LogPath)
+	}
+}
+
+func TestInstallServiceSurfacesACanceledPrompt(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	fake := g.services.(*fakeService)
+	fake.fail = true
+
+	err := g.InstallService(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "取消") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRemoveServiceUnloadsTheDaemon(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	fake := g.services.(*fakeService)
+	fake.state = service.StateRunning
+
+	if err := g.RemoveService(context.Background()); err != nil {
+		t.Fatalf("RemoveService: %v", err)
+	}
+	if fake.uninstalls != 1 || fake.state != service.StateMissing {
+		t.Fatalf("fake = %+v", fake)
+	}
+}
+
+func TestRestartCorePrefersTheDaemon(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	fake := g.services.(*fakeService)
+	fake.state = service.StateRunning
+
+	if err := g.RestartCore(context.Background()); err != nil {
+		t.Fatalf("RestartCore: %v", err)
+	}
+	if fake.kickstarts != 1 {
+		t.Fatalf("kickstarts = %d", fake.kickstarts)
+	}
+}
+
+func TestKernelRefusalIsNotPersisted(t *testing.T) {
+	srv, state := newKernel(t)
+	g := newTestGateway(t, srv)
+	state.mu.Lock()
+	state.rejectPatch = true
+	state.mu.Unlock()
+
+	if _, err := g.UpdateSettings(context.Background(), map[string]any{"mode": "global"}); err == nil {
+		t.Fatal("expected the kernel error to surface")
+	}
+	if g.Settings().Mode != "rule" {
+		t.Fatalf("mode = %q, want the old value", g.Settings().Mode)
 	}
 }

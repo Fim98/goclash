@@ -5,6 +5,8 @@ import type {
   Profile,
   ProxyGroup,
   Rule,
+  ServiceState,
+  ServiceStatus,
   Settings,
   Status,
   StreamHandler,
@@ -41,6 +43,9 @@ export function createMockGateway(): Gateway {
     exitRegion: "香港",
     nativeIp: true,
   };
+
+  // The demo runs as if the daemon were already installed, so TUN is usable.
+  let serviceState: ServiceState = "running";
 
   const settings: Settings = {
     systemProxy: true,
@@ -463,7 +468,24 @@ export function createMockGateway(): Gateway {
       return { ...settings };
     },
 
+    async serviceStatus(): Promise<ServiceStatus> {
+      return { state: serviceState };
+    },
+
+    async installService() {
+      if (serviceState === "unsupported") throw new Error("当前系统不支持安装系统服务");
+      serviceState = "running";
+    },
+
+    async removeService() {
+      serviceState = "missing";
+    },
+
     async updateSettings(patch) {
+      // Mirrors the Go gateway: TUN without the daemon is refused, not faked.
+      if (patch.tun && serviceState !== "running") {
+        throw new Error("TUN 需要系统服务：先在「网络」卡片里安装服务");
+      }
       Object.assign(settings, patch);
       if (patch.systemProxy !== undefined) {
         status.systemProxy = patch.systemProxy;

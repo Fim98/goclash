@@ -6,7 +6,7 @@ import { Card, type CardShadow } from "@/components/base/card";
 import { Segmented } from "@/components/base/segmented";
 import { AsyncPanel } from "@/components/base/state-panel";
 import { Switch } from "@/components/base/switch";
-import type { Gateway, ProxyMode, Settings } from "@/gateway/types";
+import type { Gateway, ProxyMode, ServiceStatus, Settings } from "@/gateway/types";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
@@ -22,6 +22,8 @@ const ACCENT_ORDER: Settings["accent"][] = ["coral", "mint", "sunny"];
 export function SettingsPage({ gateway }: { gateway: Gateway }) {
   const { status, refresh: refreshStatus, setStatus } = useAppStatus();
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [service, setService] = useState<ServiceStatus | null>(null);
+  const [serviceBusy, setServiceBusy] = useState(false);
   const [error, setError] = useState(false);
 
   const retry = useCallback(async () => {
@@ -47,6 +49,45 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
       cancelled = true;
     };
   }, [gateway]);
+
+  // TUN only works while the privileged daemon owns the core, so the row shows
+  // the daemon state instead of offering a switch that cannot take effect.
+  useEffect(() => {
+    let cancelled = false;
+    gateway.serviceStatus().then(
+      (next) => {
+        if (!cancelled) setService(next);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [gateway]);
+
+  async function installService() {
+    setServiceBusy(true);
+    try {
+      await gateway.installService();
+      setService(await gateway.serviceStatus());
+    } catch {
+      // Canceled admin prompt or launchd refused the plist; the row stays put.
+    } finally {
+      setServiceBusy(false);
+    }
+  }
+
+  async function removeService() {
+    setServiceBusy(true);
+    try {
+      await gateway.removeService();
+      setService(await gateway.serviceStatus());
+    } catch {
+      // Leave the row as it was.
+    } finally {
+      setServiceBusy(false);
+    }
+  }
 
   // Every control writes through immediately; the mock keeps the value so a
   // page switch and back still shows it.
@@ -124,12 +165,36 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
             />
           </Row>
           <Row label="TUN 模式 · 需要系统服务">
-            <Switch
-              size="sm"
-              label="TUN 模式"
-              checked={settings.tun}
-              onCheckedChange={(next) => void patch({ tun: next })}
-            />
+            <div className="flex flex-none items-center gap-2">
+              {service?.state === "running" ? (
+                <button
+                  type="button"
+                  disabled={serviceBusy}
+                  onClick={() => void removeService()}
+                  className="cursor-pointer text-[10px] font-black underline decoration-2 underline-offset-2 disabled:opacity-40"
+                >
+                  服务运行中 · 卸载
+                </button>
+              ) : service?.state === "unsupported" ? (
+                <span className="text-[10px] font-bold">当前系统不支持</span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={serviceBusy}
+                  onClick={() => void installService()}
+                  className="h-7 cursor-pointer border-2 border-ink bg-white px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {serviceBusy ? "安装中…" : "安装服务"}
+                </button>
+              )}
+              <Switch
+                size="sm"
+                label="TUN 模式"
+                checked={settings.tun}
+                disabled={service?.state === "unsupported"}
+                onCheckedChange={(next) => void patch({ tun: next })}
+              />
+            </div>
           </Row>
           <Row label="混合端口">
             <ValueBox>{settings.mixedPort}</ValueBox>

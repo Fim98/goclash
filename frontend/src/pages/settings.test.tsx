@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
 import { createMockGateway } from "@/gateway/mock";
-import type { Gateway } from "@/gateway/types";
+import type { Gateway, ServiceState } from "@/gateway/types";
 
 describe("Settings page", () => {
   it("writes the system proxy switch through and updates the home hero", async () => {
@@ -45,6 +45,62 @@ describe("Settings page", () => {
     await userEvent.click(toggle);
 
     await waitFor(() => expect(screen.getByRole("switch", { name: "系统代理" })).toBeChecked());
+  });
+
+  it("offers to install the daemon when TUN cannot work yet", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      serviceStatus: () => Promise.resolve({ state: "missing" }),
+      updateSettings: () => Promise.reject(new Error("TUN 需要系统服务")),
+    };
+
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("网络");
+
+    const install = await screen.findByRole("button", { name: "安装服务" });
+    expect(install).toBeInTheDocument();
+
+    // Turning TUN on without the daemon is refused; the switch snaps back.
+    await userEvent.click(screen.getByRole("switch", { name: "TUN 模式" }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "TUN 模式" })).not.toBeChecked());
+  });
+
+  it("installs the daemon and flips the row into the running state", async () => {
+    const base = createMockGateway();
+    let state: ServiceState = "missing";
+    const gateway: Gateway = {
+      ...base,
+      serviceStatus: () => Promise.resolve({ state }),
+      installService: () => {
+        state = "running";
+        return Promise.resolve();
+      },
+    };
+
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("网络");
+
+    await userEvent.click(await screen.findByRole("button", { name: "安装服务" }));
+
+    expect(await screen.findByRole("button", { name: "服务运行中 · 卸载" })).toBeInTheDocument();
+  });
+
+  it("disables TUN where the platform has no daemon", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      serviceStatus: () => Promise.resolve({ state: "unsupported" }),
+    };
+
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("网络");
+
+    expect(await screen.findByText("当前系统不支持")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "TUN 模式" })).toBeDisabled();
   });
 
   it("keeps the theme options that are not implemented disabled", async () => {

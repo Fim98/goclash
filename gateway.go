@@ -23,6 +23,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"changeme/internal/mihomo"
+	"changeme/internal/service"
 	"changeme/internal/sysproxy"
 )
 
@@ -106,6 +107,11 @@ type Status struct {
 	NativeIP      bool   `json:"nativeIp"`
 }
 
+// ServiceStatus is what the TUN row needs to render its hint.
+type ServiceStatus struct {
+	State string `json:"state"`
+}
+
 type Settings struct {
 	SystemProxy            bool   `json:"systemProxy"`
 	Tun                    bool   `json:"tun"`
@@ -145,11 +151,21 @@ type proxyController interface {
 	Disable(ctx context.Context) error
 }
 
+// serviceManager is the privileged launchd daemon that owns the core when TUN
+// is on. Faked in tests for the same reason.
+type serviceManager interface {
+	Status(ctx context.Context) (service.State, error)
+	Install(ctx context.Context, cfg service.Config) error
+	Uninstall(ctx context.Context) error
+	Kickstart(ctx context.Context) error
+}
+
 type Gateway struct {
 	app      *application.App
 	client   *mihomo.Client
 	core     *CoreProcess
 	sysproxy proxyController
+	services serviceManager
 
 	dir          string
 	settingsMu   sync.Mutex
@@ -173,7 +189,7 @@ func NewGateway() *Gateway {
 func newGatewayAt(dir string) *Gateway {
 	_ = os.MkdirAll(filepath.Join(dir, "profiles"), 0o755)
 
-	g := &Gateway{dir: dir, started: time.Now(), sysproxy: sysproxy.New()}
+	g := &Gateway{dir: dir, started: time.Now(), sysproxy: sysproxy.New(), services: service.New()}
 	g.settings = g.loadSettings()
 	g.client = mihomo.New(g.settings.ControllerAddr, g.settings.ControllerSecret)
 	g.loadProfiles()
@@ -309,7 +325,59 @@ func (g *Gateway) applySystemProxy(ctx context.Context, on bool) error {
 	return g.sysproxy.Disable(ctx)
 }
 
+// ServiceStatus reports whether the privileged daemon is installed and loaded.
+func (g *Gateway) ServiceStatus(ctx context.Context) (ServiceStatus, error) {
+	state, err := g.services.Status(ctx)
+	if err != nil {
+		return ServiceStatus{}, err
+	}
+	return ServiceStatus{State: string(state)}, nil
+}
+
+// InstallService writes the launchd daemon and hands the core over to it. The
+// user-space core is stopped first so the two do not fight over the port.
+func (g *Gateway) InstallService(ctx context.Context) error {
+	settings := g.Settings()
+	cfg := service.Config{
+		CorePath:   settings.CorePath,
+		ConfigDir:  g.dir,
+		ConfigFile: g.activeConfigPath(),
+		LogPath:    filepath.Join(g.dir, "logs", "core.log"),
+	}
+	if g.core != nil {
+		g.core.Stop()
+	}
+	if err := g.services.Install(ctx, cfg); err != nil {
+		if g.core != nil {
+			_ = g.core.Start() // put the user-space core back
+		}
+		return err
+	}
+	g.log("info", "系统服务已安装并启动，TUN 现在可用")
+	return nil
+}
+
+// RemoveService unloads the daemon and brings the user-space core back.
+func (g *Gateway) RemoveService(ctx context.Context) error {
+	if err := g.services.Uninstall(ctx); err != nil {
+		return err
+	}
+	g.log("info", "系统服务已卸载")
+	if g.core != nil {
+		_ = g.core.Start()
+	}
+	return nil
+}
+
 func (g *Gateway) RestartCore(ctx context.Context) error {
+	// When the daemon owns the core, launchd restarts it — not us.
+	if state, err := g.services.Status(ctx); err == nil && state == service.StateRunning {
+		if err := g.services.Kickstart(ctx); err != nil {
+			return err
+		}
+		g.log("info", "内核已由系统服务重启")
+		return nil
+	}
 	if g.core == nil {
 		return errors.New("尚未配置内核路径：在 settings.json 里设置 corePath")
 	}
@@ -553,6 +621,18 @@ func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Set
 		return Settings{}, err
 	}
 
+	// TUN needs the privileged daemon. Refusing here is better than letting the
+	// kernel fail with an errno the user cannot act on.
+	if _, ok := patch["tun"]; ok && next.Tun {
+		state, err := g.services.Status(ctx)
+		if err != nil {
+			return Settings{}, err
+		}
+		if state != service.StateRunning {
+			return Settings{}, errors.New("TUN 需要系统服务：先在「网络」卡片里安装服务")
+		}
+	}
+
 	// The settings page patches systemProxy directly, so it has to go through
 	// the same OS call as the hero switch.
 	if _, ok := patch["systemProxy"]; ok {
@@ -561,10 +641,10 @@ func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Set
 			return Settings{}, err
 		}
 	}
-	if err := g.updateSettings(func(s *Settings) { *s = next }); err != nil {
-		return Settings{}, err
-	}
 
+	// Push to the kernel before persisting: a value the kernel refused must not
+	// be remembered as if it applied. Local-only keys produce no patch at all,
+	// so changing the theme never needs a live kernel.
 	kernel := map[string]any{}
 	if _, ok := patch["mode"]; ok {
 		kernel["mode"] = next.Mode
@@ -583,8 +663,13 @@ func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Set
 	}
 	if len(kernel) > 0 {
 		if err := g.client.PatchConfigs(ctx, kernel); err != nil {
-			g.log("warn", "设置已保存，但内核未接受："+err.Error())
+			g.log("error", "内核拒绝了设置："+err.Error())
+			return Settings{}, err
 		}
+	}
+
+	if err := g.updateSettings(func(s *Settings) { *s = next }); err != nil {
+		return Settings{}, err
 	}
 	// A port change while the proxy is on must be reflected in the OS setting,
 	// otherwise the system keeps pointing at a dead port.
@@ -606,7 +691,9 @@ func (g *Gateway) Start(ctx context.Context) {
 
 	go g.applyOnStart(ctx)
 
-	if g.core != nil {
+	if state, err := g.services.Status(ctx); err == nil && state == service.StateRunning {
+		g.log("info", "内核由系统服务托管，跳过本地启动")
+	} else if g.core != nil {
 		if err := g.core.Start(); err != nil {
 			g.log("warn", "内核启动失败："+err.Error())
 		}
