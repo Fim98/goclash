@@ -65,7 +65,8 @@ func main() {
 		URL:              "/",
 	})
 
-	setupTray(app, mainWindow)
+	tray := setupTray(app, mainWindow)
+	go runTrayLabel(events, tray, gateway)
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

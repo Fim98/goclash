@@ -210,6 +210,7 @@ export function createMockGateway(): Gateway {
       nodeCount: 126,
       expiresAt: "2027-01-12",
       updatedAt: "3 小时前",
+      updatedUnix: Math.floor(Date.now() / 1000) - 3 * 3600,
       current: true,
     },
     {
@@ -221,6 +222,7 @@ export function createMockGateway(): Gateway {
       nodeCount: 34,
       expiresAt: "2026-12-01",
       updatedAt: "昨天",
+      updatedUnix: Math.floor(Date.now() / 1000) - 26 * 3600,
       current: false,
     },
   ];
@@ -229,6 +231,11 @@ export function createMockGateway(): Gateway {
   const logBuffer: LogLine[] = [];
   const trafficHandlers = new Set<StreamHandler>();
   const logHandlers = new Set<StreamHandler>();
+  const profilesHandlers = new Set<() => void>();
+
+  function notifyProfiles() {
+    profilesHandlers.forEach((handler) => handler());
+  }
   let trafficTimer: ReturnType<typeof setInterval> | undefined;
   let logTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -431,18 +438,25 @@ export function createMockGateway(): Gateway {
         nodeCount: 0,
         expiresAt: "未知",
         updatedAt: "刚刚",
+        updatedUnix: Math.floor(Date.now() / 1000),
         current: false,
       });
+      notifyProfiles();
     },
 
     async removeProfile(id) {
       const index = profiles.findIndex((candidate) => candidate.id === id);
       if (index >= 0) profiles.splice(index, 1);
+      notifyProfiles();
     },
 
     async refreshProfile(id) {
       const profile = profiles.find((candidate) => candidate.id === id);
-      if (profile) profile.updatedAt = "刚刚";
+      if (profile) {
+        profile.updatedAt = "刚刚";
+        profile.updatedUnix = Math.floor(Date.now() / 1000);
+      }
+      notifyProfiles();
     },
 
     async settings() {
@@ -456,6 +470,11 @@ export function createMockGateway(): Gateway {
         status.connected = patch.systemProxy;
       }
       if (patch.mode) status.mode = patch.mode;
+    },
+
+    onProfilesChanged(handler) {
+      profilesHandlers.add(handler);
+      return () => profilesHandlers.delete(handler);
     },
 
     subscribe(stream, onEvent) {

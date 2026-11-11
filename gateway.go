@@ -23,6 +23,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"changeme/internal/mihomo"
+	"changeme/internal/sysproxy"
 )
 
 // Domain shapes shared with the frontend (see frontend/src/gateway/types.ts).
@@ -80,7 +81,10 @@ type Profile struct {
 	NodeCount  int    `json:"nodeCount"`
 	ExpiresAt  string `json:"expiresAt"`
 	UpdatedAt  string `json:"updatedAt"`
-	Current    bool   `json:"current"`
+	// UpdatedUnix is the source of truth for UpdatedAt; the label is formatted
+	// on read so a card opened hours later does not still say 刚刚.
+	UpdatedUnix int64 `json:"updatedUnix"`
+	Current     bool  `json:"current"`
 	// File and Source never leave Go: the UI only needs the masked URL.
 	File   string `json:"-"`
 	Source string `json:"-"`
@@ -134,10 +138,18 @@ type Settings struct {
 // Gateway is the Wails service the windows bind to. Every method maps onto the
 // kernel's external controller; settings and profile metadata live in the app
 // config directory so they survive restarts.
+// proxyController is the OS-level system proxy. Tests inject a fake so the
+// suite never edits the machine's network settings.
+type proxyController interface {
+	Enable(ctx context.Context, port int) error
+	Disable(ctx context.Context) error
+}
+
 type Gateway struct {
-	app    *application.App
-	client *mihomo.Client
-	core   *CoreProcess
+	app      *application.App
+	client   *mihomo.Client
+	core     *CoreProcess
+	sysproxy proxyController
 
 	dir          string
 	settingsMu   sync.Mutex
@@ -161,7 +173,7 @@ func NewGateway() *Gateway {
 func newGatewayAt(dir string) *Gateway {
 	_ = os.MkdirAll(filepath.Join(dir, "profiles"), 0o755)
 
-	g := &Gateway{dir: dir, started: time.Now()}
+	g := &Gateway{dir: dir, started: time.Now(), sysproxy: sysproxy.New()}
 	g.settings = g.loadSettings()
 	g.client = mihomo.New(g.settings.ControllerAddr, g.settings.ControllerSecret)
 	g.loadProfiles()
@@ -276,10 +288,25 @@ func (g *Gateway) SetMode(ctx context.Context, mode string) error {
 	return g.updateSettings(func(s *Settings) { s.Mode = mode })
 }
 
+// SetSystemProxy flips the operating system proxy and only then persists the
+// flag: if the OS refuses, the UI keeps showing the old state instead of a
+// switch that lies.
 func (g *Gateway) SetSystemProxy(ctx context.Context, on bool) error {
-	// TODO(core): apply through networksetup once OS integration lands; the
-	// flag is persisted and reflected in Status immediately.
+	if err := g.applySystemProxy(ctx, on); err != nil {
+		g.log("error", "系统代理开关失败："+err.Error())
+		return err
+	}
 	return g.updateSettings(func(s *Settings) { s.SystemProxy = on })
+}
+
+func (g *Gateway) applySystemProxy(ctx context.Context, on bool) error {
+	if g.sysproxy == nil {
+		return nil
+	}
+	if on {
+		return g.sysproxy.Enable(ctx, g.Settings().MixedPort)
+	}
+	return g.sysproxy.Disable(ctx)
 }
 
 func (g *Gateway) RestartCore(ctx context.Context) error {
@@ -384,6 +411,9 @@ func (g *Gateway) Profiles(ctx context.Context) ([]Profile, error) {
 		if profile.Current {
 			profile.NodeCount = nodeCount
 		}
+		if label := relativeTime(profile.UpdatedUnix); label != "" {
+			profile.UpdatedAt = label
+		}
 		out = append(out, profile)
 	}
 	return out, nil
@@ -402,13 +432,14 @@ func (g *Gateway) AddProfile(ctx context.Context, rawURL string) error {
 	}
 
 	profile := Profile{
-		ID:        id,
-		Name:      hostLabel(rawURL),
-		URL:       maskURL(rawURL),
-		Source:    rawURL,
-		NodeCount: countProxies(body),
-		UpdatedAt: "刚刚",
-		File:      file,
+		ID:          id,
+		Name:        hostLabel(rawURL),
+		URL:         maskURL(rawURL),
+		Source:      rawURL,
+		NodeCount:   countProxies(body),
+		UpdatedAt:   "刚刚",
+		UpdatedUnix: time.Now().Unix(),
+		File:        file,
 	}
 	profile.UsedBytes, profile.TotalBytes, profile.ExpiresAt = parseUserInfo(header)
 
@@ -477,6 +508,7 @@ func (g *Gateway) RefreshProfile(ctx context.Context, id string) error {
 		return err
 	}
 	profile.NodeCount = countProxies(body)
+	profile.UpdatedUnix = time.Now().Unix()
 	profile.UpdatedAt = "刚刚"
 	profile.UsedBytes, profile.TotalBytes, profile.ExpiresAt = parseUserInfo(header)
 	active := profile.ID == g.activeID
@@ -521,6 +553,14 @@ func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Set
 		return Settings{}, err
 	}
 
+	// The settings page patches systemProxy directly, so it has to go through
+	// the same OS call as the hero switch.
+	if _, ok := patch["systemProxy"]; ok {
+		if err := g.applySystemProxy(ctx, next.SystemProxy); err != nil {
+			g.log("error", "系统代理开关失败："+err.Error())
+			return Settings{}, err
+		}
+	}
 	if err := g.updateSettings(func(s *Settings) { *s = next }); err != nil {
 		return Settings{}, err
 	}
@@ -546,6 +586,13 @@ func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Set
 			g.log("warn", "设置已保存，但内核未接受："+err.Error())
 		}
 	}
+	// A port change while the proxy is on must be reflected in the OS setting,
+	// otherwise the system keeps pointing at a dead port.
+	if _, ok := patch["mixedPort"]; ok && next.SystemProxy {
+		if err := g.applySystemProxy(ctx, true); err != nil {
+			g.log("error", "端口已修改，但系统代理未能重新应用："+err.Error())
+		}
+	}
 	return next, nil
 }
 
@@ -555,6 +602,9 @@ func (g *Gateway) Start(ctx context.Context) {
 	go g.pumpTraffic(ctx)
 	go g.pumpLogs(ctx)
 	go g.countConnections(ctx)
+	go g.autoUpdateProfiles(ctx)
+
+	go g.applyOnStart(ctx)
 
 	if g.core != nil {
 		if err := g.core.Start(); err != nil {
@@ -563,7 +613,28 @@ func (g *Gateway) Start(ctx context.Context) {
 	}
 }
 
+// applyOnStart re-points the OS at the kernel, but only once the kernel
+// answers. The switch survives restarts, and applying it while no core is
+// listening would send every request on the machine to a dead port.
+func (g *Gateway) applyOnStart(ctx context.Context) {
+	if !g.Settings().SystemProxy {
+		return
+	}
+	if _, err := g.client.Version(ctx); err != nil {
+		g.log("warn", "内核未响应，暂不应用系统代理："+err.Error())
+		return
+	}
+	if err := g.applySystemProxy(ctx, true); err != nil {
+		g.log("warn", "启动时未能应用系统代理："+err.Error())
+	}
+}
+
 func (g *Gateway) Stop() {
+	if g.Settings().SystemProxy && g.sysproxy != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = g.sysproxy.Disable(ctx)
+		cancel()
+	}
 	if g.core != nil {
 		g.core.Stop()
 	}
@@ -608,6 +679,89 @@ func (g *Gateway) pumpLogs(ctx context.Context) {
 		})
 		sleepCtx(ctx, 2*time.Second)
 	}
+}
+
+// autoUpdateProfiles refreshes every subscription on the configured interval.
+// Disabling the master switch does not require a restart: the idle tick is
+// short and each loop re-reads the settings.
+func (g *Gateway) autoUpdateProfiles(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(g.autoUpdateDelay()):
+			g.refreshAllProfiles(ctx)
+		}
+	}
+}
+
+func (g *Gateway) autoUpdateDelay() time.Duration {
+	settings := g.Settings()
+	if !settings.AutoUpdateEnabled {
+		return 5 * time.Minute
+	}
+	hours := settings.AutoUpdateIntervalHour
+	if hours <= 0 {
+		hours = 12
+	}
+	return time.Duration(hours) * time.Hour
+}
+
+func (g *Gateway) refreshAllProfiles(ctx context.Context) {
+	g.profilesMu.Lock()
+	ids := make([]string, 0, len(g.profiles))
+	for _, profile := range g.profiles {
+		ids = append(ids, profile.ID)
+	}
+	g.profilesMu.Unlock()
+	if len(ids) == 0 {
+		return
+	}
+
+	for _, id := range ids {
+		if err := g.RefreshProfile(ctx, id); err != nil {
+			g.log("warn", "定时更新订阅失败："+err.Error())
+		}
+	}
+	// Lets an open profiles page repaint without polling.
+	if list, err := g.Profiles(ctx); err == nil {
+		g.emit("gateway:profiles", list)
+	}
+	if g.Settings().AutoSwitchLowest {
+		g.selectLowestLatency(ctx)
+	}
+}
+
+// selectLowestLatency implements "订阅更新后自动切到延迟最低节点". It reads the
+// kernel's own delay history instead of re-probing, so a scheduled refresh
+// does not turn into a burst of 128 latency checks.
+func (g *Gateway) selectLowestLatency(ctx context.Context) {
+	proxies, err := g.client.Proxies(ctx)
+	if err != nil {
+		return
+	}
+	groupName, group, ok := mainGroup(proxies, g.Settings().Mode)
+	if !ok {
+		return
+	}
+	best, bestDelay := "", 0
+	for _, name := range group.All {
+		delay := lastDelay(proxies[name])
+		if delay == nil {
+			continue
+		}
+		if best == "" || *delay < bestDelay {
+			best, bestDelay = name, *delay
+		}
+	}
+	if best == "" || best == group.Now {
+		return
+	}
+	if err := g.client.Select(ctx, groupName, best); err != nil {
+		g.log("warn", "自动切换节点失败："+err.Error())
+		return
+	}
+	g.log("info", fmt.Sprintf("订阅已更新，自动切到延迟最低节点：%s（%d ms）", best, bestDelay))
 }
 
 func (g *Gateway) countConnections(ctx context.Context) {
@@ -790,13 +944,23 @@ func currentExit(proxies map[string]mihomo.Proxy, mode string) (string, *int) {
 	if mode == "direct" {
 		return "DIRECT", nil
 	}
+	_, group, ok := mainGroup(proxies, mode)
+	if !ok {
+		return "", nil
+	}
+	return group.Now, lastDelay(proxies[group.Now])
+}
+
+// mainGroup names the strategy group that carries regular traffic. The order
+// differs by mode: rule mode goes through the selector, global through GLOBAL.
+func mainGroup(proxies map[string]mihomo.Proxy, mode string) (string, mihomo.Proxy, bool) {
 	candidates := []string{"GLOBAL", "节点选择", "PROXY", "Proxy"}
 	if mode == "rule" {
 		candidates = []string{"节点选择", "PROXY", "Proxy", "GLOBAL"}
 	}
 	for _, name := range candidates {
 		if proxy, ok := proxies[name]; ok && proxy.Now != "" {
-			return proxy.Now, lastDelay(proxies[proxy.Now])
+			return name, proxy, true
 		}
 	}
 	names := make([]string, 0, len(proxies))
@@ -806,11 +970,31 @@ func currentExit(proxies map[string]mihomo.Proxy, mode string) (string, *int) {
 		}
 	}
 	sort.Strings(names)
-	for _, name := range names {
-		proxy := proxies[name]
-		return proxy.Now, lastDelay(proxies[proxy.Now])
+	if len(names) == 0 {
+		return "", mihomo.Proxy{}, false
 	}
-	return "", nil
+	return names[0], proxies[names[0]], true
+}
+
+// relativeTime turns the stored timestamp into the label the cards show. It is
+// computed on read so a page opened hours later never repeats 刚刚.
+func relativeTime(unix int64) string {
+	if unix <= 0 {
+		return ""
+	}
+	elapsed := time.Since(time.Unix(unix, 0))
+	switch {
+	case elapsed < time.Minute:
+		return "刚刚"
+	case elapsed < time.Hour:
+		return fmt.Sprintf("%d 分钟前", int(elapsed.Minutes()))
+	case elapsed < 24*time.Hour:
+		return fmt.Sprintf("%d 小时前", int(elapsed.Hours()))
+	case elapsed < 48*time.Hour:
+		return "昨天"
+	default:
+		return fmt.Sprintf("%d 天前", int(elapsed.Hours()/24))
+	}
 }
 
 func countNodes(proxies map[string]mihomo.Proxy) int {

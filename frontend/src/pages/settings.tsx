@@ -54,6 +54,14 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
     setSettings((previous) => (previous ? { ...previous, ...next } : previous));
     try {
       await gateway.updateSettings(next);
+    } catch {
+      // The OS refused the change (or the kernel rejected it); re-read what is
+      // stored so the control snaps back instead of lying.
+      try {
+        setSettings(await gateway.settings());
+      } catch {
+        setError(true);
+      }
     } finally {
       if (next.systemProxy !== undefined || next.mode !== undefined || next.tun !== undefined) {
         await refreshStatus();

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -25,6 +25,26 @@ describe("Settings page", () => {
     await userEvent.click(screen.getByRole("button", { name: "首页" }));
 
     expect((await screen.findAllByText("未连接")).length).toBeGreaterThan(0);
+  });
+
+  it("snaps the switch back when the OS refuses the change", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      // Stands in for networksetup failing: the Go side rejects and never
+      // persists the flag.
+      updateSettings: () => Promise.reject(new Error("networksetup 拒绝了请求")),
+    };
+
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("网络");
+
+    const toggle = screen.getByRole("switch", { name: "系统代理" });
+    expect(toggle).toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => expect(screen.getByRole("switch", { name: "系统代理" })).toBeChecked());
   });
 
   it("keeps the theme options that are not implemented disabled", async () => {

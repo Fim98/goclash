@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	_ "embed"
+	"fmt"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -17,7 +20,7 @@ var trayIcon []byte
 // item that owns it. Clicking the icon toggles the popup; Wails positions it
 // under the icon and hides it again when it loses focus, so no manual window
 // management is needed here.
-func setupTray(app *application.App, mainWindow *application.WebviewWindow) *application.WebviewWindow {
+func setupTray(app *application.App, mainWindow *application.WebviewWindow) *application.SystemTray {
 	trayWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "tray",
 		Title:            "GoClash",
@@ -56,7 +59,43 @@ func setupTray(app *application.App, mainWindow *application.WebviewWindow) *app
 		showMain(trayWindow, mainWindow)
 	})
 
-	return trayWindow
+	return tray
+}
+
+// runTrayLabel keeps the menu bar text in sync with the current exit latency.
+// It repaints only when the string changes; SetLabel rebuilds the status item
+// on macOS and doing that every few seconds for nothing is wasteful.
+func runTrayLabel(ctx context.Context, tray *application.SystemTray, gateway *Gateway) {
+	last := "\x00" // forces the first write
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		label := trayLabel(ctx, gateway)
+		if label != last {
+			tray.SetLabel(label)
+			last = label
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func trayLabel(ctx context.Context, gateway *Gateway) string {
+	// The setting is read every tick so flipping it in settings applies at once.
+	if !gateway.Settings().MenuBarLatency {
+		return ""
+	}
+	status, err := gateway.Status(ctx)
+	if err != nil || !status.SystemProxy {
+		return ""
+	}
+	if status.ExitLatency == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%d ms", *status.ExitLatency)
 }
 
 func showMain(trayWindow *application.WebviewWindow, mainWindow *application.WebviewWindow) {

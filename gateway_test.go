@@ -18,27 +18,17 @@ import (
 
 // fakeKernel is a mihomo controller good enough for the gateway's calls.
 type fakeKernel struct {
-	mu      sync.Mutex
-	mode    string
-	patches []map[string]any
-	selects map[string]string
-	reloads []string
+	mu          sync.Mutex
+	mode        string
+	selectorNow string
+	patches     []map[string]any
+	selects     map[string]string
+	reloads     []string
 }
 
 func newKernel(t *testing.T) (*httptest.Server, *fakeKernel) {
 	t.Helper()
 	state := &fakeKernel{mode: "rule", selects: map[string]string{}}
-
-	proxies := map[string]any{
-		"节点选择": map[string]any{"name": "节点选择", "type": "Selector", "now": "香港 01", "all": []string{"香港 01", "日本 01"}},
-		"自动选择": map[string]any{"name": "自动选择", "type": "URLTest", "now": "日本 01", "all": []string{"日本 01"}},
-		"香港 01": map[string]any{"name": "香港 01", "type": "Shadowsocks",
-			"history": []map[string]any{{"time": "2026-01-01T00:00:00Z", "delay": 38}}},
-		"日本 01": map[string]any{"name": "日本 01", "type": "Shadowsocks",
-			"history": []map[string]any{{"time": "2026-01-01T00:00:00Z", "delay": 52}}},
-		"DIRECT": map[string]any{"name": "DIRECT", "type": "Direct"},
-		"REJECT": map[string]any{"name": "REJECT", "type": "Reject"},
-	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +64,22 @@ func newKernel(t *testing.T) (*httptest.Server, *fakeKernel) {
 		}
 	})
 	mux.HandleFunc("/proxies", func(w http.ResponseWriter, r *http.Request) {
-		writeTestJSON(w, map[string]any{"proxies": proxies})
+		state.mu.Lock()
+		now := state.selectorNow
+		state.mu.Unlock()
+		if now == "" {
+			now = "香港 01"
+		}
+		writeTestJSON(w, map[string]any{"proxies": map[string]any{
+			"节点选择": map[string]any{"name": "节点选择", "type": "Selector", "now": now, "all": []string{"香港 01", "日本 01"}},
+			"自动选择": map[string]any{"name": "自动选择", "type": "URLTest", "now": "日本 01", "all": []string{"日本 01"}},
+			"香港 01": map[string]any{"name": "香港 01", "type": "Shadowsocks",
+				"history": []map[string]any{{"time": "2026-01-01T00:00:00Z", "delay": 38}}},
+			"日本 01": map[string]any{"name": "日本 01", "type": "Shadowsocks",
+				"history": []map[string]any{{"time": "2026-01-01T00:00:00Z", "delay": 52}}},
+			"DIRECT": map[string]any{"name": "DIRECT", "type": "Direct"},
+			"REJECT": map[string]any{"name": "REJECT", "type": "Reject"},
+		}})
 	})
 	mux.HandleFunc("/proxies/", func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]string
@@ -117,7 +122,46 @@ func newTestGateway(t *testing.T, srv *httptest.Server) *Gateway {
 	g.settings = defaultSettings()
 	g.settings.ControllerAddr = strings.TrimPrefix(srv.URL, "http://")
 	g.client = mihomo.New(g.settings.ControllerAddr, "")
+	g.sysproxy = &fakeProxy{}
 	return g
+}
+
+// fakeProxy stands in for the OS layer so the suite never edits this machine's
+// network settings.
+type fakeProxy struct {
+	mu      sync.Mutex
+	enabled bool
+	port    int
+	fail    bool
+	calls   int
+}
+
+func (f *fakeProxy) Enable(_ context.Context, port int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	if f.fail {
+		return fmt.Errorf("networksetup 拒绝了请求")
+	}
+	f.enabled, f.port = true, port
+	return nil
+}
+
+func (f *fakeProxy) Disable(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	if f.fail {
+		return fmt.Errorf("networksetup 拒绝了请求")
+	}
+	f.enabled, f.port = false, 0
+	return nil
+}
+
+func (f *fakeProxy) state() (bool, int, int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.enabled, f.port, f.calls
 }
 
 func writeTestJSON(w http.ResponseWriter, payload any) {
@@ -304,5 +348,184 @@ func TestPing(t *testing.T) {
 	g := &Gateway{}
 	if !g.Ping() {
 		t.Fatal("Ping should always be true inside the app")
+	}
+}
+
+func TestSetSystemProxyAppliesThenPersists(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	proxy := g.sysproxy.(*fakeProxy)
+
+	if err := g.SetSystemProxy(context.Background(), true); err != nil {
+		t.Fatalf("SetSystemProxy: %v", err)
+	}
+	enabled, port, calls := proxy.state()
+	if !enabled || port != 7890 || calls != 1 {
+		t.Fatalf("proxy = enabled:%v port:%d calls:%d", enabled, port, calls)
+	}
+	if !g.Settings().SystemProxy {
+		t.Fatal("flag should be persisted after a successful apply")
+	}
+
+	restored := &Gateway{dir: g.dir}
+	restored.settings = restored.loadSettings()
+	if !restored.settings.SystemProxy {
+		t.Fatal("flag did not survive a reload")
+	}
+}
+
+func TestSetSystemProxyFailureLeavesTheFlagOff(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.settings.SystemProxy = false
+	proxy := g.sysproxy.(*fakeProxy)
+	proxy.fail = true
+
+	if err := g.SetSystemProxy(context.Background(), true); err == nil {
+		t.Fatal("expected the OS error to surface")
+	}
+	if g.Settings().SystemProxy {
+		t.Fatal("a failed apply must not flip the persisted flag")
+	}
+}
+
+func TestUpdateSettingsRoutesSystemProxyThroughTheOS(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	proxy := g.sysproxy.(*fakeProxy)
+
+	if _, err := g.UpdateSettings(context.Background(), map[string]any{"systemProxy": false}); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+	enabled, _, calls := proxy.state()
+	if enabled || calls != 1 {
+		t.Fatalf("proxy = enabled:%v calls:%d", enabled, calls)
+	}
+	if g.Settings().SystemProxy {
+		t.Fatal("settings page toggle was not persisted")
+	}
+}
+
+func TestMixedPortChangeReappliesSystemProxy(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.settings.SystemProxy = true
+	proxy := g.sysproxy.(*fakeProxy)
+
+	if _, err := g.UpdateSettings(context.Background(), map[string]any{"mixedPort": 7891}); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+	_, port, _ := proxy.state()
+	if port != 7891 {
+		t.Fatalf("proxy port = %d, want 7891", port)
+	}
+}
+
+func TestAutoUpdateDelayFollowsSettings(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+
+	if got := g.autoUpdateDelay(); got != 12*time.Hour {
+		t.Fatalf("default delay = %v", got)
+	}
+	g.settings.AutoUpdateIntervalHour = 6
+	if got := g.autoUpdateDelay(); got != 6*time.Hour {
+		t.Fatalf("6h delay = %v", got)
+	}
+	g.settings.AutoUpdateEnabled = false
+	if got := g.autoUpdateDelay(); got != 5*time.Minute {
+		t.Fatalf("disabled delay = %v", got)
+	}
+}
+
+func TestSelectLowestLatencySwitchesTheMainGroup(t *testing.T) {
+	srv, state := newKernel(t)
+	g := newTestGateway(t, srv)
+
+	// The selector currently sits on the slower node; the refresh should move
+	// it to the 38 ms one without re-probing anything.
+	state.mu.Lock()
+	state.selectorNow = "日本 01"
+	state.mu.Unlock()
+
+	g.selectLowestLatency(context.Background())
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.selects["节点选择"] != "香港 01" {
+		t.Fatalf("selects = %+v", state.selects)
+	}
+}
+
+func TestSelectLowestLatencyKeepsTheCurrentNodeWhenItIsFastest(t *testing.T) {
+	srv, state := newKernel(t)
+	g := newTestGateway(t, srv)
+
+	g.selectLowestLatency(context.Background())
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if len(state.selects) != 0 {
+		t.Fatalf("unexpected switch: %+v", state.selects)
+	}
+}
+
+func TestRelativeTime(t *testing.T) {
+	if got := relativeTime(0); got != "" {
+		t.Fatalf("zero = %q", got)
+	}
+	if got := relativeTime(time.Now().Unix()); got != "刚刚" {
+		t.Fatalf("now = %q", got)
+	}
+	if got := relativeTime(time.Now().Add(-3 * time.Hour).Unix()); got != "3 小时前" {
+		t.Fatalf("3h = %q", got)
+	}
+	if got := relativeTime(time.Now().Add(-50 * time.Hour).Unix()); got != "2 天前" {
+		t.Fatalf("50h = %q", got)
+	}
+}
+
+func TestApplyOnStartRequiresAReachableKernel(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.settings.SystemProxy = true
+	proxy := g.sysproxy.(*fakeProxy)
+
+	g.applyOnStart(context.Background())
+	if enabled, _, _ := proxy.state(); !enabled {
+		t.Fatal("a live kernel should get the system proxy applied")
+	}
+}
+
+func TestApplyOnStartLeavesTheOSAloneWithoutAKernel(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+	g.settings.SystemProxy = true
+	proxy := g.sysproxy.(*fakeProxy)
+	srv.Close()
+
+	g.applyOnStart(context.Background())
+	if enabled, _, calls := proxy.state(); enabled || calls != 0 {
+		t.Fatalf("proxy = enabled:%v calls:%d, want untouched", enabled, calls)
+	}
+}
+
+func TestTrayLabelFollowsTheSettingAndTheKernel(t *testing.T) {
+	srv, _ := newKernel(t)
+	g := newTestGateway(t, srv)
+
+	if got := trayLabel(context.Background(), g); got != "38 ms" {
+		t.Fatalf("label = %q, want the exit latency", got)
+	}
+
+	g.settings.MenuBarLatency = false
+	if got := trayLabel(context.Background(), g); got != "" {
+		t.Fatalf("label with the setting off = %q", got)
+	}
+
+	g.settings.MenuBarLatency = true
+	srv.Close()
+	if got := trayLabel(context.Background(), g); got != "" {
+		t.Fatalf("label with the kernel down = %q", got)
 	}
 }

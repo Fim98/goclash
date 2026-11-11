@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -50,6 +50,21 @@ describe("Profiles page", () => {
     await userEvent.click(screen.getByRole("button", { name: "添加" }));
 
     expect(await screen.findByText("新订阅 3")).toBeInTheDocument();
+  });
+
+  it("repaints when a scheduled refresh changes the list", async () => {
+    const gateway = createMockGateway();
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "订阅" }));
+
+    expect(await screen.findByText("3 小时前")).toBeInTheDocument();
+
+    // The Go gateway emits gateway:profiles after a background refresh.
+    await act(async () => {
+      await gateway.refreshProfile("p1");
+    });
+
+    expect(await screen.findByText("刚刚")).toBeInTheDocument();
   });
 
   it("offers an import action when there is no subscription at all", async () => {

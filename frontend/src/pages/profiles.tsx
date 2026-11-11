@@ -36,6 +36,15 @@ export function ProfilesPage({ gateway }: { gateway: Gateway }) {
     };
   }, [gateway]);
 
+  // A scheduled refresh pushes a fresh list; repaint without polling.
+  useEffect(
+    () =>
+      gateway.onProfilesChanged(() => {
+        gateway.profiles().then(setProfiles, () => {});
+      }),
+    [gateway],
+  );
+
   const refresh = useCallback(async () => {
     setProfiles(await gateway.profiles());
     setError(false);
@@ -43,7 +52,16 @@ export function ProfilesPage({ gateway }: { gateway: Gateway }) {
 
   async function patchSettings(patch: Partial<Settings>) {
     setSettings((previous) => (previous ? { ...previous, ...patch } : previous));
-    await gateway.updateSettings(patch);
+    try {
+      await gateway.updateSettings(patch);
+    } catch {
+      // Keep the control honest: show whatever the gateway actually stored.
+      try {
+        setSettings(await gateway.settings());
+      } catch {
+        // Leave the optimistic value; reopening the page re-reads it.
+      }
+    }
   }
 
   async function remove(id: string) {

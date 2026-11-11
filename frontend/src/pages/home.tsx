@@ -93,6 +93,9 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
     setStatus({ ...status, systemProxy: next, connected: next });
     try {
       await gateway.setSystemProxy(next);
+    } catch {
+      // The gateway refuses when the OS call fails; the refresh below restores
+      // the switch to what the kernel actually reports.
     } finally {
       await refresh();
     }
@@ -103,6 +106,8 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
     setStatus({ ...status, mode });
     try {
       await gateway.setMode(mode);
+    } catch {
+      // A rejected patch leaves the mode untouched; refresh restores it.
     } finally {
       await refresh();
     }

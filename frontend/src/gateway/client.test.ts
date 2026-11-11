@@ -53,6 +53,23 @@ describe("Wails gateway bridge", () => {
     expect(off).toHaveBeenCalled();
   });
 
+  it("listens for background profile refreshes", () => {
+    const off = vi.fn();
+    on.mockReturnValueOnce(off);
+
+    const gateway = createWailsGateway();
+    const handler = vi.fn();
+    const unsubscribe = gateway.onProfilesChanged(handler);
+
+    expect(on).toHaveBeenCalledWith("gateway:profiles", expect.any(Function));
+
+    on.mock.calls[0][1]({ data: null });
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    expect(off).toHaveBeenCalled();
+  });
+
   it("falls back to demo data when the bridge is missing", async () => {
     callByName.mockRejectedValue(new Error("ReferenceError: no wails host"));
 

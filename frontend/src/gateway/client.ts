@@ -44,6 +44,11 @@ export function createWailsGateway(): Gateway {
     settings: () => call("Settings"),
     updateSettings: (patch) => call("UpdateSettings", patch),
 
+    onProfilesChanged(handler) {
+      const off = Events.On("gateway:profiles", () => handler());
+      return () => off();
+    },
+
     subscribe(stream, handler) {
       const name = `gateway:${stream}`;
       const off = Events.On(name, (event) => {

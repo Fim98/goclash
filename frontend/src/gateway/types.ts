@@ -75,7 +75,10 @@ export interface Profile {
   totalBytes: number;
   nodeCount: number;
   expiresAt: string;
+  /** Relative label computed server-side on every read ("3 小时前"). */
   updatedAt: string;
+  /** Source timestamp in epoch seconds; 0 when the profile predates it. */
+  updatedUnix: number;
   current: boolean;
 }
 
@@ -159,4 +162,9 @@ export interface Gateway {
 
   /** Returns an unsubscribe function; callers must call it on unmount. */
   subscribe(stream: GatewayStream, onEvent: StreamHandler): () => void;
+  /**
+   * Fires when a background profile refresh changes the list, so an open
+   * profiles page can repaint without polling.
+   */
+  onProfilesChanged(handler: () => void): () => void;
 }
