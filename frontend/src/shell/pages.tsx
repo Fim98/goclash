@@ -5,8 +5,10 @@ import type { Gateway } from "@/gateway/types";
 import { ConnectionsPage } from "@/pages/connections";
 import { HomePage } from "@/pages/home";
 import { LogsPage } from "@/pages/logs";
+import { ProfilesPage } from "@/pages/profiles";
 import { ProxiesPage } from "@/pages/proxies";
 import { RulesPage } from "@/pages/rules";
+import { SettingsPage } from "@/pages/settings";
 
 export type PageId =
   "home" | "proxies" | "profiles" | "connections" | "rules" | "logs" | "settings";
@@ -48,6 +50,7 @@ export const PAGES: PageDefinition[] = [
     label: "订阅",
     sub: "2 个远程配置 · 1 个本地配置 · 自动更新每 12 小时",
     icon: <Layers className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway) => <ProfilesPage gateway={gateway} />,
   },
   {
     id: "connections",
@@ -75,5 +78,6 @@ export const PAGES: PageDefinition[] = [
     label: "设置",
     sub: "GoClash 3.0.0 · mihomo 1.19.4 · 服务模式运行中",
     icon: <Settings className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway) => <SettingsPage gateway={gateway} />,
   },
 ];

@@ -49,10 +49,12 @@ export function createMockGateway(): Gateway {
     allowLan: false,
     mode: "rule",
     logLevel: "info",
+    autoUpdateEnabled: true,
     autoUpdateIntervalHours: 12,
     autoSwitchLowestLatency: true,
     proxyDownload: false,
     chainedProxy: false,
+    coreAutoUpdate: false,
     launchAtLogin: true,
     silentStart: false,
     closeAction: "tray",
@@ -405,6 +407,14 @@ export function createMockGateway(): Gateway {
 
     async openLogDirectory() {
       pushLog({ time: clock(), level: "info", message: "已打开日志目录 ~/Library/Logs/GoClash" });
+    },
+
+    async openConfigDirectory() {
+      pushLog({
+        time: clock(),
+        level: "info",
+        message: "已打开配置目录 ~/Library/Application Support/GoClash",
+      });
     },
 
     async profiles() {

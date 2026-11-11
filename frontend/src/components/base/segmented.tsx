@@ -5,6 +5,8 @@ export interface SegmentedProps<T extends string> {
   value: T;
   options: ReadonlyArray<{ value: T; label: ReactNode }>;
   onChange: (value: T) => void;
+  /** Options that exist in the design but have no implementation yet. */
+  disabledValues?: readonly T[];
   /** Accessible name for the group, e.g. "代理模式". */
   ariaLabel?: string;
   className?: string;
@@ -19,6 +21,7 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  disabledValues,
   ariaLabel,
   className,
 }: SegmentedProps<T>) {
@@ -30,15 +33,18 @@ export function Segmented<T extends string>({
     >
       {options.map((option) => {
         const selected = option.value === value;
+        const disabled = disabledValues?.includes(option.value) ?? false;
         return (
           <button
             key={option.value}
             type="button"
             aria-pressed={selected}
+            disabled={disabled}
             onClick={() => onChange(option.value)}
             className={cn(
               "h-10 cursor-pointer px-5 text-[13px] font-bold text-ink",
               selected && "bg-coral font-black text-white",
+              disabled && "cursor-not-allowed opacity-40",
             )}
           >
             {option.label}

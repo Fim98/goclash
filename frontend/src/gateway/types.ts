@@ -102,11 +102,15 @@ export interface Settings {
   allowLan: boolean;
   mode: ProxyMode;
   logLevel: LogLevel;
+  /** Master switch for profile auto-update; interval only applies when on. */
+  autoUpdateEnabled: boolean;
   autoUpdateIntervalHours: 6 | 12 | 24;
   autoSwitchLowestLatency: boolean;
   proxyDownload: boolean;
   /** Chained proxies: traffic goes through two hops; slower but harder to trace. */
   chainedProxy: boolean;
+  /** Keep the mihomo core itself up to date. */
+  coreAutoUpdate: boolean;
   launchAtLogin: boolean;
   silentStart: boolean;
   closeAction: "tray" | "quit";
@@ -142,6 +146,8 @@ export interface Gateway {
   clearLogs(): Promise<void>;
   /** Opens the kernel log directory in the OS file manager. */
   openLogDirectory(): Promise<void>;
+  /** Opens the app config directory in the OS file manager. */
+  openConfigDirectory(): Promise<void>;
 
   profiles(): Promise<Profile[]>;
   addProfile(url: string): Promise<void>;
