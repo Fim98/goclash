@@ -1,18 +1,11 @@
-import {
-  Waypoints,
-  Home,
-  Globe,
-  Layers,
-  ArrowLeftRight,
-  ScrollText,
-  Settings,
-  Zap,
-} from "lucide-react";
+import { Waypoints, Home, Globe, Layers, ArrowLeftRight, ScrollText, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Button, IconButton } from "@/components/base/button";
 import type { Gateway } from "@/gateway/types";
+import { ConnectionsPage } from "@/pages/connections";
 import { HomePage } from "@/pages/home";
+import { LogsPage } from "@/pages/logs";
+import { RulesPage } from "@/pages/rules";
 
 export type PageId =
   "home" | "proxies" | "profiles" | "connections" | "rules" | "logs" | "settings";
@@ -28,8 +21,6 @@ export interface PageDefinition {
   icon: ReactNode;
   /** Present once the page is implemented; missing = placeholder board. */
   render?: (gateway: Gateway, navigate: PageNavigate) => ReactNode;
-  /** Rendered in the page header's right side, next to the title. */
-  actions?: (gateway: Gateway, navigate: PageNavigate) => ReactNode;
 }
 
 /** Line icons at 18px / 2.5 stroke — the weight the boards use. */
@@ -43,19 +34,6 @@ export const PAGES: PageDefinition[] = [
     sub: "连接状态 · 实时流量 · 出口信息",
     icon: <Home className={NAV_ICON} strokeWidth={NAV_STROKE} />,
     render: (gateway, navigate) => <HomePage gateway={gateway} navigate={navigate} />,
-    actions: (gateway, navigate) => (
-      <>
-        <IconButton size="md" aria-label="打开设置" onClick={() => navigate("settings")}>
-          <Settings className="size-4" strokeWidth={2.5} />
-        </IconButton>
-        <Button
-          icon={<Zap className="size-3.5" strokeWidth={2.5} />}
-          onClick={() => void gateway.testAllGroups()}
-        >
-          立即测速
-        </Button>
-      </>
-    ),
   },
   {
     id: "proxies",
@@ -74,18 +52,21 @@ export const PAGES: PageDefinition[] = [
     label: "连接",
     sub: "42 条活动连接 · 进程嗅探开启",
     icon: <ArrowLeftRight className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway) => <ConnectionsPage gateway={gateway} />,
   },
   {
     id: "rules",
     label: "规则",
     sub: "1284 条规则 · 12 个规则集 · 最后更新 3 小时前",
     icon: <Waypoints className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway) => <RulesPage gateway={gateway} />,
   },
   {
     id: "logs",
     label: "日志",
     sub: "实时输出 · 缓冲区 512 条 · 等级 info 及以上",
     icon: <ScrollText className={NAV_ICON} strokeWidth={NAV_STROKE} />,
+    render: (gateway) => <LogsPage gateway={gateway} />,
   },
   {
     id: "settings",

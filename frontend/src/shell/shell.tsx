@@ -3,8 +3,9 @@ import { MOCK_META } from "@/gateway/mock";
 import type { Status } from "@/gateway/types";
 import { formatUptime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
+import { HeaderActionsContext } from "./header-actions-context";
 import { PAGES, type PageDefinition, type PageId } from "./pages";
 
 export interface AppShellProps {
@@ -12,8 +13,6 @@ export interface AppShellProps {
   currentPage: PageId;
   status: Status | null;
   onNavigate: (pageId: PageId) => void;
-  /** Page header actions (page buttons, search…) resolved by App. */
-  actions?: ReactNode;
   children?: ReactNode;
 }
 
@@ -24,14 +23,11 @@ export interface AppShellProps {
  * The top strip starts at 80px so the macOS traffic lights keep their inset
  * position without colliding with the app name.
  */
-export function AppShell({
-  page,
-  currentPage,
-  status,
-  onNavigate,
-  actions,
-  children,
-}: AppShellProps) {
+export function AppShell({ page, currentPage, status, onNavigate, children }: AppShellProps) {
+  // Pages portal their header buttons into this slot, so toolbar state can live
+  // inside the page while the buttons stay in the header row.
+  const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
+
   return (
     <div className="flex h-dvh w-full flex-col bg-white text-ink">
       <header className="flex h-11 flex-none items-center gap-3 border-b-4 border-ink pl-20 pr-4">
@@ -86,9 +82,13 @@ export function AppShell({
               </h1>
               <div className="mt-0.5 text-xs font-bold">{page.sub}</div>
             </div>
-            {actions ? <div className="flex h-16 items-center gap-3">{actions}</div> : null}
+            <div ref={setActionsTarget} className="flex h-16 items-center gap-3" />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-5">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col gap-5">
+            <HeaderActionsContext.Provider value={actionsTarget}>
+              {children}
+            </HeaderActionsContext.Provider>
+          </div>
         </main>
       </div>
     </div>

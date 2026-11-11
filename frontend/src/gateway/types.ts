@@ -136,6 +136,11 @@ export interface Gateway {
   rules(): Promise<Rule[]>;
   reloadRules(): Promise<void>;
 
+  /** Drops the kernel log buffer; the log page mirrors it locally. */
+  clearLogs(): Promise<void>;
+  /** Opens the kernel log directory in the OS file manager. */
+  openLogDirectory(): Promise<void>;
+
   profiles(): Promise<Profile[]>;
   addProfile(url: string): Promise<void>;
   removeProfile(id: string): Promise<void>;

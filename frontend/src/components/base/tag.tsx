@@ -46,23 +46,31 @@ export function Tag({ tone = "white", dot = false, icon, className, children }: 
 /**
  * Filter chips: the taller sibling of Tag used in toolbars. The active chip is
  * inverted (ink on paper) — colour stays reserved for state, not decoration.
+ * Pass onClick to make it an interactive filter (renders a button).
  */
 export interface ChipProps {
   active?: boolean;
+  onClick?: () => void;
   className?: string;
   children?: ReactNode;
 }
 
-export function Chip({ active = false, className, children }: ChipProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[34px] flex-none items-center whitespace-nowrap border-2 border-ink px-3.5 text-xs font-bold",
-        active ? "bg-ink text-white" : "bg-white text-ink",
-        className,
-      )}
-    >
-      {children}
-    </span>
+export function Chip({ active = false, onClick, className, children }: ChipProps) {
+  const base = cn(
+    "inline-flex h-[34px] flex-none items-center whitespace-nowrap border-2 border-ink px-3.5 text-xs font-bold",
+    active ? "bg-ink text-white" : "bg-white text-ink",
+    onClick &&
+      "cursor-pointer transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5",
+    className,
   );
+
+  if (onClick) {
+    return (
+      <button type="button" aria-pressed={active} onClick={onClick} className={base}>
+        {children}
+      </button>
+    );
+  }
+
+  return <span className={base}>{children}</span>;
 }

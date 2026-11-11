@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, Ref, UIEventHandler } from "react";
 import { cn } from "@/lib/utils";
 
 export interface DataTableColumn<Row> {
@@ -13,7 +13,7 @@ export interface DataTableColumn<Row> {
 export interface DataTableProps<Row> {
   columns: ReadonlyArray<DataTableColumn<Row>>;
   rows: ReadonlyArray<Row>;
-  rowKey: (row: Row) => string;
+  rowKey: (row: Row, index: number) => string;
   /**
    * Per-row emphasis: the connections table uses it for the tracked row
    * (sunny highlight), the rules table for the inverted MATCH row (ink).
@@ -23,6 +23,10 @@ export interface DataTableProps<Row> {
   rowHeight?: number;
   /** Pinned to the bottom of the frame: counters, "last updated", actions. */
   footer?: ReactNode;
+  /** The scrolling body — the log console uses it for auto-scroll. */
+  scrollRef?: Ref<HTMLDivElement>;
+  /** Scroll events from the body; the log console uses it to detect pinning. */
+  onScroll?: UIEventHandler<HTMLDivElement>;
   ariaLabel?: string;
   className?: string;
 }
@@ -46,6 +50,8 @@ export function DataTable<Row>({
   rowClassName,
   rowHeight = 59,
   footer,
+  scrollRef,
+  onScroll,
   ariaLabel,
   className,
 }: DataTableProps<Row>) {
@@ -79,10 +85,15 @@ export function DataTable<Row>({
         </div>
       </div>
 
-      <div role="rowgroup" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {rows.map((row) => (
+      <div
+        ref={scrollRef}
+        role="rowgroup"
+        onScroll={onScroll}
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      >
+        {rows.map((row, index) => (
           <div
-            key={rowKey(row)}
+            key={rowKey(row, index)}
             role="row"
             className={cn(
               "flex flex-none items-center border-b-2 border-ink px-4 last:border-b-0",

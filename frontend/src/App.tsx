@@ -59,17 +59,10 @@ export default function App({ gateway = defaultGateway }: AppProps) {
   );
 
   const page = PAGES.find((candidate) => candidate.id === currentPage) ?? PAGES[0];
-  const actions = page.actions?.(gateway, setCurrentPage);
 
   return (
     <StatusContext.Provider value={statusContext}>
-      <AppShell
-        page={page}
-        status={status}
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-        actions={actions}
-      >
+      <AppShell page={page} status={status} currentPage={currentPage} onNavigate={setCurrentPage}>
         {page.render ? (
           page.render(gateway, setCurrentPage)
         ) : (

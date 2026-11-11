@@ -1,7 +1,16 @@
-import { ArrowDown, ArrowUp, Link2, RefreshCw, ScrollText, TriangleAlert } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Link2,
+  RefreshCw,
+  ScrollText,
+  Settings,
+  TriangleAlert,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/base/button";
+import { Button, IconButton } from "@/components/base/button";
 import { Card } from "@/components/base/card";
 import { Segmented } from "@/components/base/segmented";
 import { StatCard } from "@/components/base/stat";
@@ -11,6 +20,7 @@ import { Tag } from "@/components/base/tag";
 import type { Gateway, ProxyMode, Status, TrafficSample } from "@/gateway/types";
 import { formatLatency, formatSpeedFixed } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
 import type { PageNavigate } from "@/shell/pages";
 
@@ -100,6 +110,18 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
+      <HeaderActions>
+        <IconButton size="md" aria-label="打开设置" onClick={() => navigate("settings")}>
+          <Settings className="size-4" strokeWidth={2.5} />
+        </IconButton>
+        <Button
+          icon={<Zap className="size-3.5" strokeWidth={2.5} />}
+          onClick={() => void gateway.testAllGroups()}
+        >
+          立即测速
+        </Button>
+      </HeaderActions>
+
       <Hero status={status} latest={latest} onToggle={() => void toggleSystemProxy()} />
 
       <div className="grid h-[108px] flex-none grid-cols-3 gap-5">

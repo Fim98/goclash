@@ -227,11 +227,74 @@ export function createMockGateway(): Gateway {
   const trafficHandlers = new Set<StreamHandler>();
   const logHandlers = new Set<StreamHandler>();
   let trafficTimer: ReturnType<typeof setInterval> | undefined;
+  let logTimer: ReturnType<typeof setInterval> | undefined;
+
+  // Seed the console with the lines a live kernel would already have buffered,
+  // so the log page opens with history instead of an empty frame.
+  const seed: Array<[LogLine["level"], string]> = [
+    ["info", "混合端口监听 127.0.0.1:7890 · 允许局域网 false"],
+    ["debug", "[TUN] inbound connection from 10.0.0.5:7890 · uid 501"],
+    ["info", "配置「机场 A · 主订阅」已更新，126 个节点载入完成 · 耗时 1.8s"],
+    ["error", "节点「英国 · 伦敦 01」连接超时（3000ms），已自动切换到备用节点"],
+    ["info", "[UDP] 192.168.1.12:5353 · 8.8.8.8:53 · GeoIP(CN) · 命中 DIRECT"],
+    ["warn", "节点「美国 · 洛杉矶 02」延迟 210ms，超过阈值 150ms，已标记为待切换"],
+    ["debug", "[DNS] query A fonts.googleapis.com · 142.250.72.14 · 命中缓存"],
+    [
+      "info",
+      "[TCP] 192.168.1.12:52140 · api.github.com:443 · DomainSuffix(github.com) · 命中 节点选择[日本 东京 01]",
+    ],
+    [
+      "info",
+      "[TCP] 192.168.1.12:52144 · www.youtube.com:443 · DomainSuffix(youtube.com) · 命中 节点选择[香港 IPLC 02]",
+    ],
+    [
+      "info",
+      "[TCP] 192.168.1.12:52138 · steamcommunity.com:443 · DomainKeyword(steam) · 命中 节点选择[香港 IPLC 02]",
+    ],
+  ];
+  seed.forEach(([level, message], index) => {
+    const at = new Date(Date.now() - (seed.length - index) * 1000);
+    logBuffer.push({ time: clock(at), level, message });
+  });
+
+  // What a live kernel keeps printing while the console is open.
+  const feed: Array<[LogLine["level"], string]> = [
+    [
+      "info",
+      "[TCP] 10.0.0.5:51204 · api.github.com:443 · DomainSuffix(github.com) · 命中 节点选择[香港 IPLC 02]",
+    ],
+    ["debug", "[DNS] query A cdn.jsdelivr.net · 151.101.1.229 · 命中缓存"],
+    [
+      "info",
+      "[TCP] 10.0.0.5:51208 · www.youtube.com:443 · DomainSuffix(youtube.com) · 命中 节点选择[香港 IPLC 02]",
+    ],
+    ["info", "[UDP] 192.168.1.12:5353 · 8.8.8.8:53 · GeoIP(CN) · 命中 DIRECT"],
+    ["warn", "节点「新加坡 · SG 03」延迟 118ms，高于组内最优 38ms"],
+    [
+      "info",
+      "[TCP] 10.0.0.5:51212 · steamcommunity.com:443 · DomainKeyword(steam) · 命中 节点选择[日本 东京 01]",
+    ],
+    ["debug", "[TUN] inbound connection from 10.0.0.5:51216 · uid 501"],
+  ];
 
   function pushLog(line: LogLine) {
     logBuffer.push(line);
     if (logBuffer.length > 512) logBuffer.shift();
     logHandlers.forEach((handler) => handler(line));
+  }
+
+  function ensureLogClock() {
+    if (logTimer) return;
+    let cursor = 0;
+    logTimer = setInterval(() => {
+      const [level, message] = feed[cursor % feed.length];
+      cursor += 1;
+      pushLog({ time: clock(), level, message });
+      if (logHandlers.size === 0) {
+        clearInterval(logTimer);
+        logTimer = undefined;
+      }
+    }, 2000);
   }
 
   function ensureTrafficClock() {
@@ -273,11 +336,11 @@ export function createMockGateway(): Gateway {
     },
 
     async testGroup(groupId) {
-      pushLog({ time: now(), level: "info", message: `测速完成 · 策略组 ${groupId}` });
+      pushLog({ time: clock(), level: "info", message: `测速完成 · 策略组 ${groupId}` });
     },
 
     async testAllGroups() {
-      pushLog({ time: now(), level: "info", message: "全部策略组测速完成" });
+      pushLog({ time: clock(), level: "info", message: "全部策略组测速完成" });
     },
 
     async setMode(mode) {
@@ -292,7 +355,7 @@ export function createMockGateway(): Gateway {
     },
 
     async restartCore() {
-      pushLog({ time: now(), level: "info", message: "内核已重启，代理信息重新载入" });
+      pushLog({ time: clock(), level: "info", message: "内核已重启，代理信息重新载入" });
     },
 
     async connections() {
@@ -313,7 +376,15 @@ export function createMockGateway(): Gateway {
     },
 
     async reloadRules() {
-      pushLog({ time: now(), level: "info", message: "规则集已更新，1284 条规则载入完成" });
+      pushLog({ time: clock(), level: "info", message: "规则集已更新，1284 条规则载入完成" });
+    },
+
+    async clearLogs() {
+      logBuffer.length = 0;
+    },
+
+    async openLogDirectory() {
+      pushLog({ time: clock(), level: "info", message: "已打开日志目录 ~/Library/Logs/GoClash" });
     },
 
     async profiles() {
@@ -363,17 +434,20 @@ export function createMockGateway(): Gateway {
         ensureTrafficClock();
         return () => trafficHandlers.delete(onEvent);
       }
+      // Logs replay the kernel's current buffer on attach, then stream live —
+      // the console opens with history, exactly like `docker logs`.
       logHandlers.add(onEvent);
+      logBuffer.forEach((line) => onEvent(line));
+      ensureLogClock();
       return () => logHandlers.delete(onEvent);
     },
   };
 }
 
-/** Mock clock for log lines; the real gateway prints the kernel's stamps. */
-function now(): string {
-  const date = new Date();
+/** Mock clock for log lines; the real kernel prints the same wall-clock stamps. */
+function clock(date = new Date()): string {
   const pad = (value: number, length = 2) => String(value).padStart(length, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 }
 
 export const MOCK_META = { appVersion: APP_VERSION, coreVersion: CORE_VERSION };
