@@ -66,15 +66,48 @@ destination: default
 }
 
 func TestDarwinEnableSteps(t *testing.T) {
-	steps := darwinEnableSteps("Wi-Fi", 7890)
+	steps := darwinEnableSteps("Wi-Fi", 7890, mergeBypass(nil))
 	want := []step{
 		{"networksetup", []string{"-setwebproxy", "Wi-Fi", "127.0.0.1", "7890"}},
 		{"networksetup", []string{"-setsecurewebproxy", "Wi-Fi", "127.0.0.1", "7890"}},
 		{"networksetup", []string{"-setsocksfirewallproxy", "Wi-Fi", "127.0.0.1", "7890"}},
-		{"networksetup", []string{"-setproxybypassdomains", "Wi-Fi", "127.0.0.1", "localhost", "*.local"}},
+		{"networksetup", []string{
+			"-setproxybypassdomains", "Wi-Fi", "127.0.0.1", "localhost", "*.local", "<local>",
+			"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+		}},
 	}
 	if !reflect.DeepEqual(steps, want) {
 		t.Fatalf("steps = %+v", steps)
+	}
+}
+
+func TestMergeBypassKeepsUserEntries(t *testing.T) {
+	merged := mergeBypass([]string{"127.0.0.1", "*.crashlytics.com", "<local>"})
+
+	if merged[0] != "127.0.0.1" || merged[1] != "*.crashlytics.com" {
+		t.Fatalf("user order not preserved: %v", merged)
+	}
+	count := map[string]int{}
+	for _, host := range merged {
+		count[host]++
+	}
+	if count["127.0.0.1"] != 1 || count["<local>"] != 1 {
+		t.Fatalf("duplicates in %v", merged)
+	}
+	for _, want := range bypassHosts {
+		if count[want] != 1 {
+			t.Fatalf("%q missing from %v", want, merged)
+		}
+	}
+}
+
+func TestParseBypass(t *testing.T) {
+	if got := parseBypass("There aren't any proxy bypass domains set on Wi-Fi.\n"); got != nil {
+		t.Fatalf("empty list = %v", got)
+	}
+	got := parseBypass("127.0.0.1\n*.local\n\n")
+	if len(got) != 2 || got[0] != "127.0.0.1" || got[1] != "*.local" {
+		t.Fatalf("parsed = %v", got)
 	}
 }
 
@@ -98,7 +131,7 @@ func TestLinuxSteps(t *testing.T) {
 		"org.gnome.system.proxy.http port 7891",
 		"org.gnome.system.proxy.https port 7891",
 		"org.gnome.system.proxy.socks port 7891",
-		"ignore-hosts ['127.0.0.1', 'localhost', '*.local']",
+		"ignore-hosts ['127.0.0.1', 'localhost', '*.local', '<local>', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']",
 	} {
 		if !strings.Contains(all, want) {
 			t.Fatalf("missing %q in\n%s", want, all)

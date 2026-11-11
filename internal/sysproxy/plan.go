@@ -12,9 +12,14 @@ type step struct {
 	args []string
 }
 
-// Bypass entries shared by the three platforms: the loopback and the mDNS-ish
-// local suffixes are the ones that break when routed through a proxy.
-var bypassHosts = []string{"127.0.0.1", "localhost", "*.local"}
+// Bypass entries shared by the three platforms. Loopback and the local suffixes
+// are the obvious ones; the private ranges matter just as much — routing the
+// LAN through the proxy breaks printers, NAS boxes and local dev servers. This
+// list mirrors what the established macOS clients write.
+var bypassHosts = []string{
+	"127.0.0.1", "localhost", "*.local", "<local>",
+	"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+}
 
 // --- macOS ----------------------------------------------------------------
 
@@ -27,16 +32,51 @@ type networkService struct {
 
 // darwinEnableSteps sets HTTP, HTTPS and SOCKS to the mixed port. mihomo's
 // mixed listener speaks both plain HTTP and SOCKS5, so one port serves all
-// three settings.
-func darwinEnableSteps(service string, port int) []step {
+// three settings. bypass is passed in because the caller merges the user's
+// existing exceptions instead of replacing them.
+func darwinEnableSteps(service string, port int, bypass []string) []step {
 	address := strconv.Itoa(port)
-	bypass := append([]string{"-setproxybypassdomains", service}, bypassHosts...)
+	bypassArgs := append([]string{"-setproxybypassdomains", service}, bypass...)
 	return []step{
 		{"networksetup", []string{"-setwebproxy", service, "127.0.0.1", address}},
 		{"networksetup", []string{"-setsecurewebproxy", service, "127.0.0.1", address}},
 		{"networksetup", []string{"-setsocksfirewallproxy", service, "127.0.0.1", address}},
-		{"networksetup", bypass},
+		{"networksetup", bypassArgs},
 	}
+}
+
+// parseBypass reads `networksetup -getproxybypassdomains`, which prints one
+// host per line or a sentence when the list is empty.
+func parseBypass(output string) []string {
+	if strings.Contains(output, "aren't any") {
+		return nil
+	}
+	hosts := make([]string, 0, 8)
+	for _, line := range strings.Split(output, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			hosts = append(hosts, line)
+		}
+	}
+	return hosts
+}
+
+// mergeBypass keeps the user's own exceptions and appends the defaults they are
+// missing. Overwriting the list would silently delete rules like an internal
+// hostname that someone added by hand.
+func mergeBypass(existing []string) []string {
+	seen := make(map[string]struct{}, len(existing)+len(bypassHosts))
+	merged := make([]string, 0, len(existing)+len(bypassHosts))
+	for _, host := range append(append([]string{}, existing...), bypassHosts...) {
+		if host == "" {
+			continue
+		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		merged = append(merged, host)
+	}
+	return merged
 }
 
 // darwinDisableSteps only flips the three states off; the bypass list is left

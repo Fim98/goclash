@@ -13,7 +13,13 @@ func platformEnable(ctx context.Context, m *Manager, port int) error {
 	if err != nil {
 		return err
 	}
-	for _, s := range darwinEnableSteps(service, port) {
+	// Merge rather than replace: the machine may already carry hand-written
+	// exceptions that have nothing to do with this app.
+	existing := []string{}
+	if out, err := m.run(ctx, "networksetup", "-getproxybypassdomains", service); err == nil {
+		existing = parseBypass(string(out))
+	}
+	for _, s := range darwinEnableSteps(service, port, mergeBypass(existing)) {
 		if err := m.runStep(ctx, s); err != nil {
 			return err
 		}

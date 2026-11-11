@@ -26,6 +26,8 @@ func (r *recorder) run(_ context.Context, name string, args ...string) ([]byte, 
 		return []byte("  interface: en0\n"), nil
 	case name == "networksetup" && len(args) > 0 && args[0] == "-listnetworkserviceorder":
 		return []byte(serviceOrder), nil
+	case name == "networksetup" && len(args) > 0 && args[0] == "-getproxybypassdomains":
+		return []byte("127.0.0.1\n*.crashlytics.com\n"), nil
 	}
 	return nil, nil
 }
@@ -54,6 +56,10 @@ func TestEnableUsesDefaultRouteService(t *testing.T) {
 	}
 	if strings.Contains(all, "USB 10/100/1000") {
 		t.Fatalf("applied to the wrong service:\n%s", all)
+	}
+	// The machine's own exception survives; the defaults fill in around it.
+	if !strings.Contains(all, "-setproxybypassdomains Wi-Fi 127.0.0.1 *.crashlytics.com") {
+		t.Fatalf("user bypass entry dropped:\n%s", all)
 	}
 }
 
