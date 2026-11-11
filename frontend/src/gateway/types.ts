@@ -136,6 +136,23 @@ export interface ServiceStatus {
   state: ServiceState;
 }
 
+/**
+ * The core binary on disk. "missing" is the first-run state: nothing to run,
+ * which is why the app shows a download button instead of an error.
+ */
+export type CoreState = "missing" | "ready" | "outdated" | "downloading";
+
+export interface CoreStatus {
+  state: CoreState;
+  /** Installed version, without the leading "v"; "" when nothing is installed. */
+  version: string;
+  /** Newest release from the last check; "" until a check has succeeded. */
+  latest: string;
+  path: string;
+  /** 0–1 while downloading. */
+  progress: number;
+}
+
 export type GatewayStream = "traffic" | "log";
 export type StreamHandler = (event: TrafficSample | LogLine) => void;
 
@@ -156,6 +173,15 @@ export interface Gateway {
   removeService(): Promise<void>;
   /** Best-effort kernel restart; resolves once the core answers again. */
   restartCore(): Promise<void>;
+
+  /** What is on disk right now. Never hits the network. */
+  coreStatus(): Promise<CoreStatus>;
+  /** Asks the release feed for the newest version. Needs the network. */
+  checkCoreUpdate(): Promise<CoreStatus>;
+  /** Downloads the platform build, installs it and restarts the core. */
+  downloadCore(): Promise<CoreStatus>;
+  /** Progress pushes while a download runs; returns an unsubscribe function. */
+  onCoreProgress(handler: (status: CoreStatus) => void): () => void;
 
   connections(): Promise<Connection[]>;
   closeConnection(id: string): Promise<void>;

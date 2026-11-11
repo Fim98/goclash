@@ -146,3 +146,37 @@ describe("Settings page", () => {
     expect(await screen.findByRole("switch", { name: "静默启动" })).toBeChecked();
   });
 });
+
+describe("Settings page — core binary", () => {
+  it("downloads the core, shows the bar, then settles on the new version", async () => {
+    render(<App gateway={createMockGateway()} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("内核");
+
+    // The demo starts one version behind, so the row offers an update.
+    await userEvent.click(await screen.findByRole("button", { name: "更新" }));
+
+    expect(await screen.findByRole("progressbar", { name: "内核下载进度" })).toBeInTheDocument();
+
+    // Once installed the row goes back to a version plus a check button.
+    expect(await screen.findByText("v1.20.0", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "检查更新" })).toBeInTheDocument();
+  });
+
+  it("keeps the installed version when the download fails", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      downloadCore: () => Promise.reject(new Error("上游没有为当前系统发布内核包")),
+    };
+
+    render(<App gateway={gateway} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("内核");
+
+    await userEvent.click(await screen.findByRole("button", { name: "更新" }));
+
+    expect(await screen.findByText("上游没有为当前系统发布内核包")).toBeInTheDocument();
+    expect(screen.getByText("v1.19.4")).toBeInTheDocument();
+  });
+});

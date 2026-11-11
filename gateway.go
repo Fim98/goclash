@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"changeme/internal/corefetch"
 	"changeme/internal/exitip"
 	"changeme/internal/mihomo"
 	"changeme/internal/service"
@@ -113,6 +115,17 @@ type ServiceStatus struct {
 	State string `json:"state"`
 }
 
+// CoreStatus describes the core binary on disk. State is "missing" (nothing to
+// run), "ready", "outdated" (upstream has another version) or "downloading".
+// Progress is 0–1 and only meaningful while downloading.
+type CoreStatus struct {
+	State    string  `json:"state"`
+	Version  string  `json:"version"`
+	Latest   string  `json:"latest"`
+	Path     string  `json:"path"`
+	Progress float64 `json:"progress"`
+}
+
 type Settings struct {
 	SystemProxy            bool   `json:"systemProxy"`
 	Tun                    bool   `json:"tun"`
@@ -163,12 +176,32 @@ type serviceManager interface {
 	Kickstart(ctx context.Context) error
 }
 
+// coreSource is the release feed plus the installer. Faked in tests so the
+// suite never reaches GitHub.
+type coreSource interface {
+	Latest(ctx context.Context, channel string) (corefetch.Release, error)
+	Install(ctx context.Context, asset corefetch.Asset, version, root string, progress corefetch.ProgressFunc) (string, error)
+}
+
+// proxyAwareCoreSource builds a client per call so toggling "download through
+// the proxy" takes effect without a restart.
+type proxyAwareCoreSource struct{ g *Gateway }
+
+func (p proxyAwareCoreSource) Latest(ctx context.Context, channel string) (corefetch.Release, error) {
+	return p.g.coreFetcher().Latest(ctx, channel)
+}
+
+func (p proxyAwareCoreSource) Install(ctx context.Context, asset corefetch.Asset, version, root string, progress corefetch.ProgressFunc) (string, error) {
+	return p.g.coreFetcher().Install(ctx, asset, version, root, progress)
+}
+
 type Gateway struct {
 	app      *application.App
 	client   *mihomo.Client
 	core     *CoreProcess
 	sysproxy proxyController
 	services serviceManager
+	cores    coreSource
 
 	dir          string
 	settingsMu   sync.Mutex
@@ -178,6 +211,13 @@ type Gateway struct {
 	activeID     string
 	started      time.Time
 	connectionNo atomic.Int64
+
+	// Core download state. Latest is a cache of the last successful check so
+	// the settings page can render without touching the network.
+	coreMu          sync.Mutex
+	coreDownloading bool
+	coreProgress    float64
+	coreLatest      string
 
 	exitMu sync.Mutex
 	exit   exitip.Info
@@ -199,10 +239,13 @@ func newGatewayAt(dir string) *Gateway {
 	_ = os.MkdirAll(filepath.Join(dir, "profiles"), 0o755)
 
 	g := &Gateway{dir: dir, started: time.Now(), sysproxy: sysproxy.New(), services: service.New()}
+	g.cores = proxyAwareCoreSource{g: g}
 	g.lookupExit = g.lookupExitThroughKernel
 	g.settings = g.loadSettings()
+	g.coreLatest = g.loadCoreCache()
 	g.client = mihomo.New(g.settings.ControllerAddr, g.settings.ControllerSecret)
 	g.loadProfiles()
+	g.adoptCore()
 	if g.settings.CorePath != "" {
 		g.core = &CoreProcess{bin: g.settings.CorePath, dir: g.dir, config: g.activeConfigPath()}
 	}
@@ -403,6 +446,223 @@ func (g *Gateway) RemoveService(ctx context.Context) error {
 		_ = g.core.Start()
 	}
 	return nil
+}
+
+// --- core binary -----------------------------------------------------------
+
+// CoreStatus reports what is on disk and what the last check found. It never
+// touches the network: the settings page calls it on every mount.
+func (g *Gateway) CoreStatus() CoreStatus {
+	g.coreMu.Lock()
+	downloading, progress := g.coreDownloading, g.coreProgress
+	g.coreMu.Unlock()
+
+	path, version := g.installedCore()
+	latest := g.latestCore()
+
+	state := "missing"
+	switch {
+	case downloading:
+		state = "downloading"
+	case path == "":
+		state = "missing"
+	case latest != "" && latest != version:
+		state = "outdated"
+	default:
+		state = "ready"
+	}
+	return CoreStatus{
+		State:    state,
+		Version:  version,
+		Latest:   latest,
+		Path:     path,
+		Progress: progress,
+	}
+}
+
+// CheckCoreUpdate asks GitHub for the newest release on the configured channel
+// and caches the answer. A failed check leaves the previous answer in place.
+func (g *Gateway) CheckCoreUpdate(ctx context.Context) (CoreStatus, error) {
+	release, err := g.cores.Latest(ctx, g.Settings().Channel)
+	if err != nil {
+		return CoreStatus{}, err
+	}
+	g.setLatestCore(strings.TrimPrefix(release.Version, "v"))
+	return g.CoreStatus(), nil
+}
+
+// DownloadCore fetches the platform build, installs it and hands the running
+// process over to it. The previous core keeps working until the new binary is
+// fully on disk, so a canceled or failed download changes nothing.
+func (g *Gateway) DownloadCore(ctx context.Context) (CoreStatus, error) {
+	g.coreMu.Lock()
+	if g.coreDownloading {
+		g.coreMu.Unlock()
+		return CoreStatus{}, errors.New("内核正在下载中")
+	}
+	g.coreDownloading = true
+	g.coreProgress = 0
+	g.coreMu.Unlock()
+	defer func() {
+		g.coreMu.Lock()
+		g.coreDownloading = false
+		g.coreMu.Unlock()
+	}()
+
+	release, err := g.cores.Latest(ctx, g.Settings().Channel)
+	if err != nil {
+		return CoreStatus{}, err
+	}
+	version := release.Version
+	if version == "" {
+		return CoreStatus{}, errors.New("上游没有可用的内核版本")
+	}
+	asset, err := corefetch.Pick(release, runtime.GOOS, runtime.GOARCH)
+	if err != nil {
+		return CoreStatus{}, err
+	}
+	g.setLatestCore(strings.TrimPrefix(version, "v"))
+	g.emit("gateway:core", g.CoreStatus())
+
+	path, err := g.cores.Install(ctx, asset, version, g.dir, func(received, total int64) {
+		ratio := 0.0
+		if total > 0 {
+			ratio = math.Min(1, float64(received)/float64(total))
+		}
+		g.coreMu.Lock()
+		g.coreProgress = ratio
+		g.coreMu.Unlock()
+		g.emit("gateway:core", CoreStatus{State: "downloading", Latest: strings.TrimPrefix(version, "v"), Progress: ratio})
+	})
+	if err != nil {
+		g.log("error", "内核下载失败："+err.Error())
+		return CoreStatus{}, err
+	}
+
+	if err := g.updateSettings(func(s *Settings) { s.CorePath = path }); err != nil {
+		return CoreStatus{}, err
+	}
+	g.log("info", "内核 "+strings.TrimPrefix(version, "v")+" 已安装："+path)
+	g.handOverToNewCore(ctx, path)
+
+	// Clear the flag before reading the status, otherwise the caller gets
+	// "downloading" back from a download that already finished.
+	g.coreMu.Lock()
+	g.coreDownloading = false
+	g.coreProgress = 1
+	g.coreMu.Unlock()
+
+	status := g.CoreStatus()
+	g.emit("gateway:core", status)
+	return status, nil
+}
+
+// handOverToNewCore points whatever currently runs the core at the new binary.
+func (g *Gateway) handOverToNewCore(ctx context.Context, path string) {
+	// The daemon owns the process when TUN is on: rewrite its plist and restart
+	// the job instead of spawning a second core that would fight for the port.
+	if state, err := g.services.Status(ctx); err == nil && state == service.StateRunning {
+		cfg := service.Config{
+			CorePath:   path,
+			ConfigDir:  g.dir,
+			ConfigFile: g.activeConfigPath(),
+			LogPath:    filepath.Join(g.dir, "logs", "core.log"),
+		}
+		err := g.services.Install(ctx, cfg)
+		if err == nil {
+			return
+		}
+		// The admin prompt was canceled or launchd refused: keep the old
+		// daemon and say so rather than leaving TUN silently broken.
+		g.log("warn", "系统服务未能切换到新内核，稍后可在「网络」卡片里重装："+err.Error())
+	}
+
+	g.core = &CoreProcess{bin: path, dir: g.dir, config: g.activeConfigPath()}
+	if err := g.core.Restart(); err != nil {
+		g.log("error", "新内核未能启动："+err.Error())
+	}
+}
+
+// installedCore resolves the binary path and its version, preferring the
+// configured one so a user-picked core is never silently replaced.
+func (g *Gateway) installedCore() (path, version string) {
+	if configured := g.Settings().CorePath; configured != "" {
+		if info, err := os.Stat(configured); err == nil && !info.IsDir() {
+			return configured, versionFromPath(configured)
+		}
+	}
+	// Nothing configured (first run, or settings were reset): adopt the newest
+	// binary we already have on disk.
+	if cores := corefetch.Installed(g.dir); len(cores) > 0 {
+		return cores[0].Path, cores[0].Version
+	}
+	return "", ""
+}
+
+// adoptCore persists a discovered binary so the next start skips the scan.
+func (g *Gateway) adoptCore() {
+	if g.settings.CorePath != "" {
+		return
+	}
+	if cores := corefetch.Installed(g.dir); len(cores) > 0 {
+		g.settings.CorePath = cores[0].Path
+		_ = g.saveSettings(g.settings)
+	}
+}
+
+func (g *Gateway) latestCore() string {
+	g.coreMu.Lock()
+	defer g.coreMu.Unlock()
+	return g.coreLatest
+}
+
+func (g *Gateway) setLatestCore(version string) {
+	g.coreMu.Lock()
+	g.coreLatest = version
+	g.coreMu.Unlock()
+	g.saveCoreCache(version)
+}
+
+// coreFetcher builds a client per call: the proxy toggle must apply to the
+// download without restarting the app.
+func (g *Gateway) coreFetcher() *corefetch.Client {
+	transport := http.DefaultTransport
+	if g.Settings().ProxyDownload {
+		port := g.Settings().MixedPort
+		transport = &http.Transport{Proxy: http.ProxyURL(&url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", port)})}
+	}
+	return corefetch.New(&http.Client{Timeout: 5 * time.Minute, Transport: transport})
+}
+
+func (g *Gateway) loadCoreCache() string {
+	raw, err := os.ReadFile(filepath.Join(g.dir, "core.json"))
+	if err != nil {
+		return ""
+	}
+	var cache struct {
+		Latest string `json:"latest"`
+	}
+	if json.Unmarshal(raw, &cache) != nil {
+		return ""
+	}
+	return cache.Latest
+}
+
+func (g *Gateway) saveCoreCache(version string) {
+	raw, err := json.MarshalIndent(map[string]string{"latest": version}, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(g.dir, "core.json"), raw, 0o644)
+}
+
+// versionFromPath reads the version out of <root>/cores/v1.19.2/mihomo.
+func versionFromPath(path string) string {
+	parent := filepath.Base(filepath.Dir(path))
+	if !strings.HasPrefix(parent, "v") {
+		return ""
+	}
+	return strings.TrimPrefix(parent, "v")
 }
 
 func (g *Gateway) RestartCore(ctx context.Context) error {

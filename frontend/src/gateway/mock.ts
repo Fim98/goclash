@@ -1,5 +1,6 @@
 import type {
   Connection,
+  CoreStatus,
   Gateway,
   LogLine,
   Profile,
@@ -238,6 +239,22 @@ export function createMockGateway(): Gateway {
   const trafficHandlers = new Set<StreamHandler>();
   const logHandlers = new Set<StreamHandler>();
   const profilesHandlers = new Set<() => void>();
+  const coreHandlers = new Set<(status: CoreStatus) => void>();
+
+  // The demo starts one version behind on purpose: the core card has a 更新
+  // button to press, and downloading it animates the progress bar.
+  let core: CoreStatus = {
+    state: "outdated",
+    version: CORE_VERSION,
+    latest: "1.20.0",
+    path: `~/Library/Application Support/GoClash/cores/v${CORE_VERSION}/mihomo`,
+    progress: 0,
+  };
+
+  function emitCore(next: CoreStatus) {
+    core = next;
+    coreHandlers.forEach((handler) => handler({ ...core }));
+  }
 
   function notifyProfiles() {
     profilesHandlers.forEach((handler) => handler());
@@ -391,6 +408,47 @@ export function createMockGateway(): Gateway {
 
     async restartCore() {
       pushLog({ time: clock(), level: "info", message: "内核已重启，代理信息重新载入" });
+    },
+
+    async coreStatus() {
+      return { ...core };
+    },
+
+    async checkCoreUpdate() {
+      await sleep(400);
+      // Same version as the cached answer: the demo never pretends a check
+      // found something new unless it did.
+      return { ...core, latest: core.latest || "1.20.0" };
+    },
+
+    async downloadCore() {
+      const latest = core.latest || "1.20.0";
+      emitCore({ ...core, state: "downloading", progress: 0 });
+      for (let step = 1; step <= 6; step += 1) {
+        await sleep(80);
+        emitCore({ ...core, state: "downloading", progress: step / 6 });
+      }
+      const installed: CoreStatus = {
+        state: "ready",
+        version: latest,
+        latest,
+        path: `~/Library/Application Support/GoClash/cores/v${latest}/mihomo`,
+        progress: 1,
+      };
+      emitCore(installed);
+      // The hero reads the kernel's own version; keep the two in step.
+      status.coreVersion = latest;
+      pushLog({
+        time: clock(),
+        level: "info",
+        message: `内核 ${latest} 已安装并接管，旧进程已停止`,
+      });
+      return { ...installed };
+    },
+
+    onCoreProgress(handler) {
+      coreHandlers.add(handler);
+      return () => coreHandlers.delete(handler);
     },
 
     async connections() {

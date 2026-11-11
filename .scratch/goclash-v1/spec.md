@@ -54,6 +54,7 @@ Feature slug: `goclash-v1`
 35. 作为用户，我想在需要 TUN 权限时被说明清楚并一键安装服务，以便不卡在权限上。
 36. 作为只用键盘的用户，我想用 Tab 走到每个控件并用空格切换开关，以便不依赖鼠标。
 37. 作为对动效敏感的用户，我想在系统开启「减少动态效果」时不出现位移和旋转，以便不眩晕。
+38. 作为第一次打开应用的用户，我想在应用里直接下载内核，以便不用自己去 GitHub 找二进制、也不用知道它该放在哪个目录。
 
 ## Implementation Decisions
 
@@ -96,7 +97,7 @@ type Gateway = {
 
 ### 契约的后续演进
 
-落地过程中按需增补，均以 `types.ts` 为准：`restartCore` / `reloadRules` / `clearLogs` / `openLogDirectory` / `openConfigDirectory` / `testAllGroups` / `refreshProfile` / 订阅增删，以及 10 号票的 `onProfilesChanged`（后台刷新订阅后通知已打开的页面）。
+落地过程中按需增补，均以 `types.ts` 为准：`restartCore` / `reloadRules` / `clearLogs` / `openLogDirectory` / `openConfigDirectory` / `testAllGroups` / `refreshProfile` / 订阅增删，以及 10 号票的 `onProfilesChanged`（后台刷新订阅后通知已打开的页面）、11/12 号票的 `serviceStatus` / `installService` / `removeService` / `refreshExitIP`，还有 14 号票的 `coreStatus` / `checkCoreUpdate` / `downloadCore` / `onCoreProgress`。
 
 ### 决策
 
@@ -107,7 +108,7 @@ type Gateway = {
 - **动效**：统一 300ms `cubic-bezier(.34,1.56,.64,1)`；`prefers-reduced-motion: reduce` 时去掉位移与旋转，只保留颜色变化。
 - **数据节奏**：traffic 1Hz 推送、日志环形缓冲 512 条、连接表最多 1s 刷新一次（避免表格抖动）。三个数值都写在 gateway mock 里，方便调。
 - **表格是一等公民**：连接、规则、日志三页共用同一个表格原语（黑表头 46px、行 59/53px、页脚 56px），三页只在列定义与行内容上不同。
-- **状态是页面的一部分**：每个页面用同一个状态面板包裹数据区（加载=骨架条、错误=说明+动作、空=图标+标题+主按钮），不允许某页出现裸白屏。
+- **状态是页面的一部分**：每个页面用同一个状态面板包裹数据区（加载=骨架条、错误=说明+动作、空=图标+标题+主按钮），不允许某页出现裸白屏。首页的错误面板会先问一句「内核装了没」：没装内核时换成下载入口，因为「重启内核」对一台没有二进制的机器毫无意义（14 号票）。
 - **可访问性**：开关是 `role="switch"` + `aria-checked`；焦点环为 4px 墨黑 outline + 2px offset；装饰性图标 `aria-hidden`。
 
 ### 视觉契约
@@ -132,6 +133,7 @@ type Gateway = {
 - 多语言：界面文案先写死中文。
 - ~~订阅导入的真实网络请求与解析~~（09 号票落地）、~~订阅定时更新~~（10 号票落地）。
 - 应用自动更新：更新器未接，设置页因此不出现「检查更新」。
+- ~~内核二进制从哪来~~ 已由 14 号票落地：`internal/corefetch` 从 GitHub release 取平台包，落到 `<配置目录>/cores/<tag>/`，启动时自动认领，设置页与首页首次运行都能一键下载。
 - Linux / Windows 的特权服务实现：只有 macOS 有，其余平台在界面上明确显示「当前系统不支持」并禁用 TUN。
 
 ## Further Notes
@@ -141,3 +143,4 @@ type Gateway = {
 - 字体决策与设计稿的「Inter 唯一」有偏差，属于中文兼容的必要偏离，已记录在决策里；若将来要上 Windows/Linux，中文字体栈需要再评估一次。
 - 托盘浮窗画板（03）已由 08 号票落地：420×620 无边框窗口 + 菜单栏图标 + `AttachWindow` 开合。
 - 出口 IP / ASN 已由 12 号票接入：经内核混合端口查询可配置端点（默认 `api.ip.sb/geoip`），失败时降级为「—」。
+- 内核二进制由 14 号票接管：不内嵌、不预置，第一次运行从上游下载并按平台选包；下载经 `proxyDownload` 同一条代理链路，国内网络可用。

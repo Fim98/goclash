@@ -123,3 +123,40 @@ describe("Home page", () => {
     expect(screen.getByText("42")).toBeInTheDocument();
   });
 });
+
+describe("Home page — first run", () => {
+  it("offers to download a core when none is installed", async () => {
+    const base = createMockGateway();
+    let installed = false;
+    const gateway: Gateway = {
+      ...base,
+      status: () => (installed ? base.status() : Promise.reject(new Error("内核未运行"))),
+      coreStatus: () =>
+        Promise.resolve({
+          state: installed ? "ready" : "missing",
+          version: installed ? "1.19.4" : "",
+          latest: "1.19.4",
+          path: "/cores/v1.19.4/mihomo",
+          progress: installed ? 1 : 0,
+        }),
+      downloadCore: () => {
+        installed = true;
+        return Promise.resolve({
+          state: "ready" as const,
+          version: "1.19.4",
+          latest: "1.19.4",
+          path: "/cores/v1.19.4/mihomo",
+          progress: 1,
+        });
+      },
+    };
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByText("还没有内核")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "下载内核" }));
+
+    // The kernel answers after the install, so the page switches to the hero.
+    expect(await screen.findByText("已连接")).toBeInTheDocument();
+  });
+});

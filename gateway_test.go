@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"changeme/internal/corefetch"
 	"changeme/internal/exitip"
 	"changeme/internal/mihomo"
 	"changeme/internal/service"
@@ -850,5 +852,186 @@ func TestExitRefreshDelayBacksOff(t *testing.T) {
 	}
 	if got := exitRefreshDelay(false); got != 30*time.Second {
 		t.Fatalf("retry delay = %v", got)
+	}
+}
+
+// fakeCoreSource stands in for GitHub: the suite must never reach the network.
+type fakeCoreSource struct {
+	release    corefetch.Release
+	latestErr  error
+	installErr error
+	installs   int
+	version    string
+	root       string
+	asset      corefetch.Asset
+	reports    []float64
+}
+
+func (f *fakeCoreSource) Latest(context.Context, string) (corefetch.Release, error) {
+	if f.latestErr != nil {
+		return corefetch.Release{}, f.latestErr
+	}
+	return f.release, nil
+}
+
+func (f *fakeCoreSource) Install(_ context.Context, asset corefetch.Asset, version, root string, progress corefetch.ProgressFunc) (string, error) {
+	if f.installErr != nil {
+		return "", f.installErr
+	}
+	f.installs++
+	f.asset, f.version, f.root = asset, version, root
+	if progress != nil {
+		progress(5, 10)
+		progress(10, 10)
+	}
+	dir := filepath.Join(root, "cores", version)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "mihomo")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func mustKernel(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv, _ := newKernel(t)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func newCoreGateway(t *testing.T) *Gateway {
+	t.Helper()
+	g := newTestGateway(t, mustKernel(t))
+	g.cores = &fakeCoreSource{release: corefetch.Release{
+		Version: "v1.19.4",
+		Assets: []corefetch.Asset{
+			{Name: "mihomo-" + runtime.GOOS + "-" + runtime.GOARCH + "-v1.19.4.gz", URL: "https://example.test/core.gz", Size: 10},
+		},
+	}}
+	return g
+}
+
+func TestCoreStatusStartsMissing(t *testing.T) {
+	g := newTestGateway(t, mustKernel(t))
+	status := g.CoreStatus()
+	if status.State != "missing" || status.Path != "" || status.Version != "" {
+		t.Fatalf("status = %+v, want missing", status)
+	}
+}
+
+func TestCoreStatusAdoptsABinaryAlreadyOnDisk(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "cores", "v1.19.2", "mihomo")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	g := newGatewayAt(dir)
+	status := g.CoreStatus()
+	if status.State != "ready" || status.Version != "1.19.2" {
+		t.Fatalf("status = %+v, want ready 1.19.2", status)
+	}
+	if g.Settings().CorePath != bin {
+		t.Errorf("corePath = %q, want the adopted binary", g.Settings().CorePath)
+	}
+	if g.core == nil || g.core.bin != bin {
+		t.Errorf("core process was not wired to the adopted binary")
+	}
+}
+
+func TestCheckCoreUpdateFlagsAnOlderCore(t *testing.T) {
+	g := newCoreGateway(t)
+	g.settings.CorePath = ""
+	// Pretend 1.19.2 is installed.
+	bin := filepath.Join(g.dir, "cores", "v1.19.2", "mihomo")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := g.CheckCoreUpdate(context.Background())
+	if err != nil {
+		t.Fatalf("CheckCoreUpdate: %v", err)
+	}
+	if status.State != "outdated" || status.Latest != "1.19.4" || status.Version != "1.19.2" {
+		t.Fatalf("status = %+v, want outdated 1.19.2 -> 1.19.4", status)
+	}
+	// The answer is cached so the next mount renders without the network.
+	if cached := g.loadCoreCache(); cached != "1.19.4" {
+		t.Errorf("cache = %q", cached)
+	}
+}
+
+func TestDownloadCoreInstallsAndTakesOver(t *testing.T) {
+	g := newCoreGateway(t)
+	source := g.cores.(*fakeCoreSource)
+
+	status, err := g.DownloadCore(context.Background())
+	if err != nil {
+		t.Fatalf("DownloadCore: %v", err)
+	}
+	if source.installs != 1 {
+		t.Fatalf("installs = %d", source.installs)
+	}
+	if source.version != "v1.19.4" || source.root != g.dir {
+		t.Errorf("install args = %q %q", source.version, source.root)
+	}
+	if status.State != "ready" || status.Version != "1.19.4" {
+		t.Fatalf("status = %+v", status)
+	}
+	if !strings.HasSuffix(g.Settings().CorePath, filepath.Join("cores", "v1.19.4", "mihomo")) {
+		t.Errorf("corePath = %q", g.Settings().CorePath)
+	}
+	if g.core == nil || g.core.bin != g.Settings().CorePath {
+		t.Errorf("core process still points at the old binary")
+	}
+	// Persisted, so the next launch starts the new core directly.
+	var stored Settings
+	raw, err := os.ReadFile(filepath.Join(g.dir, "settings.json"))
+	if err != nil {
+		t.Fatalf("settings.json: %v", err)
+	}
+	if err := json.Unmarshal(raw, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored.CorePath != g.Settings().CorePath {
+		t.Errorf("persisted corePath = %q", stored.CorePath)
+	}
+}
+
+func TestDownloadCoreHandsOverToTheDaemon(t *testing.T) {
+	g := newCoreGateway(t)
+	svc := &fakeService{state: service.StateRunning}
+	g.services = svc
+
+	if _, err := g.DownloadCore(context.Background()); err != nil {
+		t.Fatalf("DownloadCore: %v", err)
+	}
+	if svc.installs != 1 {
+		t.Fatalf("daemon reinstalls = %d, want the plist rewritten", svc.installs)
+	}
+	if !strings.HasSuffix(svc.installCfg.CorePath, filepath.Join("cores", "v1.19.4", "mihomo")) {
+		t.Errorf("daemon core path = %q", svc.installCfg.CorePath)
+	}
+}
+
+func TestDownloadCoreKeepsTheOldCoreWhenItFails(t *testing.T) {
+	g := newCoreGateway(t)
+	g.settings.CorePath = "/usr/local/bin/mihomo"
+	g.cores.(*fakeCoreSource).installErr = fmt.Errorf("下载内核失败：502")
+
+	if _, err := g.DownloadCore(context.Background()); err == nil {
+		t.Fatal("want an error")
+	}
+	if g.Settings().CorePath != "/usr/local/bin/mihomo" {
+		t.Errorf("corePath = %q, want the previous binary", g.Settings().CorePath)
 	}
 }

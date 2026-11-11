@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/base/button";
 import { Card, type CardShadow } from "@/components/base/card";
+import { Progress } from "@/components/base/progress";
 import { Segmented } from "@/components/base/segmented";
 import { AsyncPanel } from "@/components/base/state-panel";
 import { Switch } from "@/components/base/switch";
-import type { Gateway, ProxyMode, ServiceStatus, Settings } from "@/gateway/types";
+import type { CoreStatus, Gateway, ProxyMode, ServiceStatus, Settings } from "@/gateway/types";
 import { applyTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
@@ -25,6 +26,9 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [service, setService] = useState<ServiceStatus | null>(null);
   const [serviceBusy, setServiceBusy] = useState(false);
+  const [core, setCore] = useState<CoreStatus | null>(null);
+  const [coreBusy, setCoreBusy] = useState(false);
+  const [coreError, setCoreError] = useState("");
   const [error, setError] = useState(false);
 
   const retry = useCallback(async () => {
@@ -65,6 +69,43 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
       cancelled = true;
     };
   }, [gateway]);
+
+  // The core card reads the disk once and then follows the download stream, so
+  // a bar that starts in another window is still correct here.
+  useEffect(() => {
+    let cancelled = false;
+    gateway.coreStatus().then(
+      (next) => {
+        if (!cancelled) setCore(next);
+      },
+      () => {},
+    );
+    const off = gateway.onCoreProgress((next) => setCore(next));
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [gateway]);
+
+  async function runCoreAction(action: "check" | "download") {
+    setCoreBusy(true);
+    setCoreError("");
+    try {
+      setCore(action === "check" ? await gateway.checkCoreUpdate() : await gateway.downloadCore());
+      if (action === "download") await refreshStatus();
+    } catch (cause) {
+      // Keep the card honest: re-read the disk instead of showing a version
+      // that was never installed.
+      setCoreError(cause instanceof Error ? cause.message : "内核操作失败");
+      try {
+        setCore(await gateway.coreStatus());
+      } catch {
+        // Leave the last known frame in place.
+      }
+    } finally {
+      setCoreBusy(false);
+    }
+  }
 
   async function installService() {
     setServiceBusy(true);
@@ -233,7 +274,13 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
             <ValueBox>{settings.logLevel}</ValueBox>
           </Row>
           <Row label="内核版本">
-            <ValueBox>{status ? `v${status.coreVersion}` : "—"}</ValueBox>
+            <CoreVersionRow
+              core={core}
+              busy={coreBusy}
+              error={coreError}
+              onCheck={() => void runCoreAction("check")}
+              onDownload={() => void runCoreAction("download")}
+            />
           </Row>
           <Row label="内核自动更新">
             <Switch
@@ -379,5 +426,70 @@ function ValueBox({ children }: { children: ReactNode }) {
     <span className="inline-flex h-7 flex-none items-center border-2 border-ink px-3 text-[11px] font-black tabular-nums">
       {children}
     </span>
+  );
+}
+
+/**
+ * The one row that owns the core binary: what is installed, whether upstream has
+ * something newer, and the download itself. While a download runs the row turns
+ * into a bar — a spinner here would hide the only number that matters.
+ */
+function CoreVersionRow({
+  core,
+  busy,
+  error,
+  onCheck,
+  onDownload,
+}: {
+  core: CoreStatus | null;
+  busy: boolean;
+  error: string;
+  onCheck: () => void;
+  onDownload: () => void;
+}) {
+  if (!core) return <ValueBox>—</ValueBox>;
+
+  if (core.state === "downloading") {
+    return (
+      <div className="flex w-[164px] flex-none items-center gap-2">
+        <Progress value={core.progress} label="内核下载进度" />
+        <span className="w-8 text-right text-[10px] font-black tabular-nums">
+          {Math.round(core.progress * 100)}%
+        </span>
+      </div>
+    );
+  }
+
+  const outdated = core.state === "outdated" && core.latest !== "";
+  const label = core.version ? `v${core.version}` : "未安装";
+
+  return (
+    <div className="flex flex-none flex-col items-end gap-0.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-black tabular-nums">
+          {label}
+          {outdated ? (
+            <span className="text-coral">
+              {" → "}v{core.latest}
+            </span>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={core.state === "ready" ? onCheck : onDownload}
+          className="h-7 cursor-pointer border-2 border-ink bg-surface px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "…" : core.state === "ready" ? "检查更新" : outdated ? "更新" : "下载内核"}
+        </button>
+      </div>
+      {error ? (
+        // The installed version stays visible: a failed download must not look
+        // like an empty machine.
+        <span className="max-w-[210px] truncate text-[9px] font-bold text-coral" title={error}>
+          {error}
+        </span>
+      ) : null}
+    </div>
   );
 }

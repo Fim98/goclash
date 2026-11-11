@@ -1,7 +1,7 @@
 import { Call, Events } from "@wailsio/runtime";
 
 import { createMockGateway } from "./mock";
-import type { Gateway, LogLine, TrafficSample } from "./types";
+import type { CoreStatus, Gateway, LogLine, TrafficSample } from "./types";
 
 /**
  * Bridge to the Go gateway service (`main.Gateway.*`). The service lives in the
@@ -29,6 +29,14 @@ export function createWailsGateway(): Gateway {
     installService: () => call("InstallService"),
     removeService: () => call("RemoveService"),
     restartCore: () => call("RestartCore"),
+
+    coreStatus: () => call("CoreStatus"),
+    checkCoreUpdate: () => call("CheckCoreUpdate"),
+    downloadCore: () => call("DownloadCore"),
+    onCoreProgress(handler) {
+      const off = Events.On("gateway:core", (event) => handler(event.data as CoreStatus));
+      return () => off();
+    },
 
     connections: () => call("Connections"),
     closeConnection: (id) => call("CloseConnection", id),

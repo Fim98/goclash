@@ -1,6 +1,8 @@
 import {
   ArrowDown,
   ArrowUp,
+  Cpu,
+  Download,
   Link2,
   RefreshCw,
   ScrollText,
@@ -12,12 +14,13 @@ import { useEffect, useState } from "react";
 
 import { Button, IconButton } from "@/components/base/button";
 import { Card } from "@/components/base/card";
+import { Progress } from "@/components/base/progress";
 import { Segmented } from "@/components/base/segmented";
 import { StatCard } from "@/components/base/stat";
 import { AsyncPanel } from "@/components/base/state-panel";
 import { Switch } from "@/components/base/switch";
 import { Tag } from "@/components/base/tag";
-import type { Gateway, ProxyMode, Status, TrafficSample } from "@/gateway/types";
+import type { CoreStatus, Gateway, ProxyMode, Status, TrafficSample } from "@/gateway/types";
 import { formatLatency, formatSpeedFixed } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
@@ -49,6 +52,9 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
   const { status, error, setStatus, refresh } = useAppStatus();
   const [samples, setSamples] = useState<TrafficSample[]>([]);
   const [range, setRange] = useState<RangeValue>("1m");
+  const [core, setCore] = useState<CoreStatus | null>(null);
+  const [coreBusy, setCoreBusy] = useState(false);
+  const [coreError, setCoreError] = useState("");
 
   useEffect(
     () =>
@@ -59,7 +65,78 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
     [gateway],
   );
 
+  // Only meaningful while the kernel is down: a first run has no binary at all,
+  // and "重启内核" would be a dead end there.
+  useEffect(() => {
+    if (!error) return;
+    let cancelled = false;
+    gateway.coreStatus().then(
+      (next) => {
+        if (!cancelled) setCore(next);
+      },
+      () => {},
+    );
+    const off = gateway.onCoreProgress((next) => setCore(next));
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, [error, gateway]);
+
+  async function installCore() {
+    setCoreBusy(true);
+    setCoreError("");
+    try {
+      setCore(await gateway.downloadCore());
+      await refresh();
+    } catch (cause) {
+      setCoreError(cause instanceof Error ? cause.message : "内核下载失败");
+    } finally {
+      setCoreBusy(false);
+    }
+  }
+
   if (error) {
+    if (core && (core.state === "missing" || core.state === "downloading")) {
+      const downloading = core.state === "downloading";
+      return (
+        <AsyncPanel
+          state="empty"
+          empty={{
+            icon: <Cpu />,
+            title: downloading ? "正在下载内核" : "还没有内核",
+            description:
+              "GoClash 不自带内核。下载 mihomo 官方发布包（约 30MB），装好即可连接节点。",
+            action: (
+              <div className="flex flex-col items-center gap-3">
+                <Button
+                  variant="ink"
+                  icon={<Download className="size-4" strokeWidth={2.5} />}
+                  disabled={coreBusy || downloading}
+                  onClick={() => void installCore()}
+                >
+                  {coreBusy ? "下载中…" : "下载内核"}
+                </Button>
+                {downloading ? (
+                  <div className="flex w-[260px] items-center gap-2">
+                    <Progress value={core.progress} label="内核下载进度" />
+                    <span className="w-8 text-right text-[10px] font-black tabular-nums">
+                      {Math.round(core.progress * 100)}%
+                    </span>
+                  </div>
+                ) : null}
+                {coreError ? (
+                  <span className="max-w-[380px] text-[11px] font-black text-coral">
+                    {coreError}
+                  </span>
+                ) : null}
+              </div>
+            ),
+          }}
+        />
+      );
+    }
+
     return (
       <AsyncPanel
         state="error"
