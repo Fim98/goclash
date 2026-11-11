@@ -41,7 +41,8 @@ export function createMockGateway(): Gateway {
     exitLatency: 38,
     exitIp: "203.0.113.42",
     exitAsn: "HK · HKG · AS4760 CLOUDFLARE",
-    exitRegion: "香港",
+    exitRegion: "中国香港",
+    exitRegionCode: "HK",
     nativeIp: true,
   };
 
@@ -65,7 +66,7 @@ export function createMockGateway(): Gateway {
     silentStart: false,
     closeAction: "tray",
     channel: "stable",
-    language: "简体中文",
+    language: "zh-CN",
     theme: "light",
     accent: "coral",
     menuBarLatency: true,

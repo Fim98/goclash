@@ -10,10 +10,11 @@ import { DataTable, type DataTableColumn } from "@/components/base/table";
 import type { Connection, Gateway } from "@/gateway/types";
 import { formatDuration, formatTraffic } from "@/lib/format";
 import { HeaderActions } from "@/shell/header-actions";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 type KindFilter = "all" | Connection["kind"];
 
-const KIND_LABEL: Record<KindFilter, string> = {
+const KIND_LABEL: Record<KindFilter, MessageKey> = {
   all: "全部",
   proxy: "代理",
   direct: "直连",
@@ -23,6 +24,7 @@ const KIND_LABEL: Record<KindFilter, string> = {
 const KIND_ORDER: KindFilter[] = ["all", "proxy", "direct", "reject"];
 
 export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
+  const t = useT();
   const [rows, setRows] = useState<Connection[] | null>(null);
   const [error, setError] = useState(false);
   const [kind, setKind] = useState<KindFilter>("all");
@@ -97,7 +99,7 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
           description: "内核没有应答连接列表请求。稍后重试；若持续失败请查看日志。",
           actions: (
             <Button variant="ink" onClick={() => void refresh()}>
-              重试
+              {t("重试")}
             </Button>
           ),
         }}
@@ -172,7 +174,11 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
       header: "",
       width: 30,
       cell: (row) => (
-        <IconButton size="xs" aria-label={`关闭 ${row.host}`} onClick={() => void closeOne(row.id)}>
+        <IconButton
+          size="xs"
+          aria-label={t("关闭 {host}", { host: row.host })}
+          onClick={() => void closeOne(row.id)}
+        >
           <X className="size-3" strokeWidth={3} />
         </IconButton>
       ),
@@ -186,23 +192,28 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
       <HeaderActions>
         <Input
           icon={<Search className="size-3.5" strokeWidth={2.6} />}
-          placeholder="搜索主机或规则…"
-          aria-label="搜索主机或规则"
+          placeholder={t("搜索主机或规则…")}
+          aria-label={t("搜索主机或规则")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="w-[220px]"
         />
-        <Button onClick={() => void closeAll()}>全部关闭</Button>
+        <Button onClick={() => void closeAll()}>{t("全部关闭")}</Button>
       </HeaderActions>
 
       <div className="flex h-12 flex-none items-center gap-2.5">
         {KIND_ORDER.map((key) => (
           <Chip key={key} active={kind === key} onClick={() => setKind(key)}>
-            {KIND_LABEL[key]} {counts[key]}
+            {t(KIND_LABEL[key])} {counts[key]}
           </Chip>
         ))}
-        <span className="ml-auto text-[10px] font-black">自动刷新 1s</span>
-        <Switch size="sm" label="自动刷新" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+        <span className="ml-auto text-[10px] font-black">{t("自动刷新 1s")}</span>
+        <Switch
+          size="sm"
+          label={t("自动刷新")}
+          checked={autoRefresh}
+          onCheckedChange={setAutoRefresh}
+        />
       </div>
 
       {visible.length === 0 ? (
@@ -210,13 +221,13 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
           state="empty"
           empty={{
             icon: <Link2 />,
-            title: nothingYet ? "当前没有活动连接" : "该筛选下没有连接",
+            title: nothingYet ? t("当前没有活动连接") : t("该筛选下没有连接"),
             description: nothingYet
-              ? "发出请求后，这里会实时列出每条连接、命中的规则与出口节点。"
-              : "换一个类型或清空搜索词再试。",
+              ? t("发出请求后，这里会实时列出每条连接、命中的规则与出口节点。")
+              : t("换一个类型或清空搜索词再试。"),
             action: nothingYet ? (
               <Button variant="ghost" onClick={() => void refresh()}>
-                刷新
+                {t("刷新")}
               </Button>
             ) : (
               <Button
@@ -226,14 +237,14 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
                   setQuery("");
                 }}
               >
-                清除筛选
+                {t("清除筛选")}
               </Button>
             ),
           }}
         />
       ) : (
         <DataTable
-          ariaLabel="活动连接"
+          ariaLabel={t("活动连接")}
           columns={columns}
           rows={visible}
           rowKey={(row) => row.id}
@@ -241,9 +252,12 @@ export function ConnectionsPage({ gateway }: { gateway: Gateway }) {
           footer={
             <>
               <span>
-                显示 {visible.length} / {rows.length} 条 · 超过 1 分钟未活动的连接自动隐藏
+                {t("显示 {shown} / {total} 条 · 超过 1 分钟未活动的连接自动隐藏", {
+                  shown: visible.length,
+                  total: rows.length,
+                })}
               </span>
-              <span className="ml-auto">已关闭 {closed} 条</span>
+              <span className="ml-auto">{t("已关闭 {count} 条", { count: closed })}</span>
             </>
           }
         />

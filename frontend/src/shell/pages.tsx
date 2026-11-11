@@ -2,6 +2,7 @@ import { Waypoints, Home, Globe, Layers, ArrowLeftRight, ScrollText, Settings } 
 import type { ReactNode } from "react";
 
 import type { Gateway } from "@/gateway/types";
+import type { MessageKey } from "@/lib/i18n";
 import { ConnectionsPage } from "@/pages/connections";
 import { HomePage } from "@/pages/home";
 import { LogsPage } from "@/pages/logs";
@@ -18,9 +19,9 @@ export type PageNavigate = (page: PageId) => void;
 
 export interface PageDefinition {
   id: PageId;
-  label: string;
+  label: MessageKey;
   /** The one-line context under the title; also serves as the test hook. */
-  sub: string;
+  sub: MessageKey;
   icon: ReactNode;
   /** Present once the page is implemented; missing = placeholder board. */
   render?: (gateway: Gateway, navigate: PageNavigate) => ReactNode;

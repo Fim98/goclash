@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
 import type { PageNavigate } from "@/shell/pages";
+import { useT } from "@/lib/i18n";
 
 type SortMode = "latency" | "name";
 
@@ -32,6 +33,7 @@ const LATENCY_TONE: Record<LatencyTone, string> = {
 };
 
 export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate: PageNavigate }) {
+  const t = useT();
   const { status, setStatus, refresh: refreshStatus } = useAppStatus();
   const [data, setData] = useState<ProxiesData | null>(null);
   const [error, setError] = useState(false);
@@ -137,11 +139,11 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
         state="error"
         error={{
           icon: <TriangleAlert />,
-          title: "读取代理失败",
-          description: "内核没有应答策略组请求。重试一次；若持续失败请查看日志。",
+          title: t("读取代理失败"),
+          description: t("内核没有应答策略组请求。重试一次；若持续失败请查看日志。"),
           actions: (
             <Button variant="ink" onClick={() => void retry()}>
-              重试
+              {t("重试")}
             </Button>
           ),
         }}
@@ -161,9 +163,9 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
         state="empty"
         empty={{
           icon: <Globe />,
-          title: "还没有订阅",
-          description: "策略组与节点来自订阅。去订阅页粘贴一个链接，载入后这里就会出现。",
-          action: <Button onClick={() => navigate("profiles")}>去订阅页</Button>,
+          title: t("还没有订阅"),
+          description: t("策略组与节点来自订阅。去订阅页粘贴一个链接，载入后这里就会出现。"),
+          action: <Button onClick={() => navigate("profiles")}>{t("去订阅页")}</Button>,
         }}
       />
     );
@@ -193,8 +195,8 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
       <HeaderActions>
         <Input
           icon={<Search className="size-3.5" strokeWidth={2.6} />}
-          placeholder="搜索节点…"
-          aria-label="搜索节点"
+          placeholder={t("搜索节点…")}
+          aria-label={t("搜索节点")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="w-[220px]"
@@ -204,7 +206,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
           onClick={() => void testAll()}
           disabled={busy}
         >
-          {testing === "all" ? "测速中…" : "全部测速"}
+          {testing === "all" ? t("测速中…") : t("全部测速")}
         </Button>
       </HeaderActions>
 
@@ -212,20 +214,20 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
         <Segmented
           value={status.mode}
           onChange={(mode) => void changeMode(mode)}
-          ariaLabel="代理模式"
+          ariaLabel={t("代理模式")}
           options={[
-            { value: "rule", label: "规则" },
-            { value: "global", label: "全局" },
-            { value: "direct", label: "直连" },
+            { value: "rule", label: t("规则") },
+            { value: "global", label: t("全局") },
+            { value: "direct", label: t("直连") },
           ]}
         />
         <span className="ml-auto flex items-center gap-2">
-          <span className="text-[10px] font-black">排序</span>
+          <span className="text-[10px] font-black">{t("排序")}</span>
           <SortChip active={sort === "latency"} onClick={() => setSort("latency")}>
-            延迟
+            {t("延迟")}
           </SortChip>
           <SortChip active={sort === "name"} onClick={() => setSort("name")}>
-            名称
+            {t("名称")}
           </SortChip>
         </span>
       </div>
@@ -251,7 +253,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
                   </span>
                   <IconButton
                     size="xs"
-                    aria-label={`测速 ${group.name}`}
+                    aria-label={t("测速 {name}", { name: group.name })}
                     disabled={busy}
                     onClick={() => void testOne(group.id)}
                   >
@@ -272,7 +274,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
                     />
                   ))}
                   {nodes.length === 0 ? (
-                    <p className="col-span-2 text-[11px] font-bold">无匹配节点</p>
+                    <p className="col-span-2 text-[11px] font-bold">{t("无匹配节点")}</p>
                   ) : null}
                 </div>
               </Card>
@@ -281,7 +283,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
 
           <Card shadow="sunny" className="flex flex-none flex-col gap-3 p-5">
             <div className="flex items-center gap-2">
-              <h2 className="text-[13px] font-black">最近命中</h2>
+              <h2 className="text-[13px] font-black">{t("最近命中")}</h2>
               <span className="text-[8px] font-black tracking-[0.8px]">RULE · LIVE</span>
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -293,7 +295,9 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
                   <div className="truncate text-[9px] font-black">
                     {rule.type},{rule.payload}
                   </div>
-                  <div className="mt-1 truncate text-[9px] font-bold">命中 · {rule.policy}</div>
+                  <div className="mt-1 truncate text-[9px] font-bold">
+                    {t("命中 · {policy}", { policy: rule.policy })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -307,7 +311,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
             className="flex h-[152px] flex-none -rotate-1 flex-col gap-2 bg-coral p-5 text-on-accent"
           >
             <Tag tone="white" className="self-start">
-              当前出口
+              {t("当前出口")}
             </Tag>
             <div className="truncate text-[26px] font-black leading-[1.15] tracking-[-0.8px]">
               {status.exitNode}
@@ -319,13 +323,13 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
 
           <Card shadow="sunny" className="flex h-[176px] flex-none flex-col gap-3 p-5">
             <div className="flex items-center">
-              <h2 className="text-[15px] font-black">代理提供者</h2>
+              <h2 className="text-[15px] font-black">{t("代理提供者")}</h2>
               <button
                 type="button"
                 onClick={() => void updateAllProviders(profiles)}
                 className="ml-auto cursor-pointer text-[10px] font-black"
               >
-                全部更新
+                {t("全部更新")}
               </button>
             </div>
             <div className="flex flex-col gap-2">
@@ -334,12 +338,15 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-black">{profile.name}</div>
                     <div className="mt-0.5 truncate text-[9px] font-bold">
-                      {profile.nodeCount} 节点 · {profile.updatedAt}更新
+                      {t("{nodes} 节点 · {when}更新", {
+                        nodes: profile.nodeCount,
+                        when: profile.updatedAt,
+                      })}
                     </div>
                   </div>
                   <IconButton
                     size="xs"
-                    aria-label={`更新 ${profile.name}`}
+                    aria-label={t("更新 {name}", { name: profile.name })}
                     className={profile.current ? "bg-sunny" : undefined}
                     onClick={() => void updateProvider(profile.id)}
                   >
@@ -354,12 +361,12 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
 
           <Card className="flex h-[92px] flex-none items-center justify-between gap-3 p-5">
             <div className="min-w-0">
-              <h2 className="text-[15px] font-black">链式代理</h2>
-              <p className="mt-0.5 text-[10px] font-bold">双跳加密 · 速度会明显下降</p>
+              <h2 className="text-[15px] font-black">{t("链式代理")}</h2>
+              <p className="mt-0.5 text-[10px] font-bold">{t("双跳加密 · 速度会明显下降")}</p>
             </div>
             <Switch
               size="sm"
-              label="链式代理"
+              label={t("链式代理")}
               checked={chained}
               onCheckedChange={(next) => void toggleChained(next)}
             />
@@ -434,6 +441,7 @@ function StrategyIcon({ strategy }: { strategy: ProxyGroup["strategy"] }) {
 }
 
 function QuotaCard({ profile }: { profile: Profile | undefined }) {
+  const t = useT();
   const percent =
     profile && profile.totalBytes > 0
       ? Math.min(100, Math.round((profile.usedBytes / profile.totalBytes) * 100))
@@ -442,7 +450,7 @@ function QuotaCard({ profile }: { profile: Profile | undefined }) {
   return (
     <Card shadow="seafoam" className="flex h-[152px] flex-none flex-col gap-2 p-5">
       <div className="flex items-center">
-        <h2 className="text-[15px] font-black">订阅流量</h2>
+        <h2 className="text-[15px] font-black">{t("订阅流量")}</h2>
       </div>
       <div className="text-[11px] font-black tabular-nums">
         {profile ? `${formatBytes(profile.usedBytes)} / ${formatBytes(profile.totalBytes)}` : "—"}
@@ -451,7 +459,9 @@ function QuotaCard({ profile }: { profile: Profile | undefined }) {
         <div className="h-full bg-coral" style={{ width: `${percent}%` }} />
       </div>
       <p className="text-[10px] font-bold">
-        {profile ? `已用 ${percent}% · ${profile.expiresAt} 到期` : "还没有订阅流量数据"}
+        {profile
+          ? t("已用 {percent}% · {date} 到期", { percent, date: profile.expiresAt })
+          : t("还没有订阅流量数据")}
       </p>
     </Card>
   );

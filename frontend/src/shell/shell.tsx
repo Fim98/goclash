@@ -7,6 +7,7 @@ import { useState, type ReactNode } from "react";
 
 import { HeaderActionsContext } from "./header-actions-context";
 import { PAGES, type PageDefinition, type PageId } from "./pages";
+import { useT } from "@/lib/i18n";
 
 export interface AppShellProps {
   page: PageDefinition;
@@ -24,6 +25,7 @@ export interface AppShellProps {
  * position without colliding with the app name.
  */
 export function AppShell({ page, currentPage, status, onNavigate, children }: AppShellProps) {
+  const t = useT();
   // Pages portal their header buttons into this slot, so toolbar state can live
   // inside the page while the buttons stay in the header row.
   const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
@@ -38,7 +40,7 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
         <span className="ml-auto">
           {status?.systemProxy ? (
             <Tag tone="sunny" icon={<span aria-hidden className="size-2 bg-on-accent" />}>
-              系统代理已接管
+              {t("系统代理已接管")}
             </Tag>
           ) : null}
         </span>
@@ -55,15 +57,15 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
             </div>
             <div>
               <div className="text-xl font-black leading-[1.1] tracking-[-0.6px]">GoClash</div>
-              <div className="mt-0.5 text-[11px] font-bold">Clash Meta 客户端</div>
+              <div className="mt-0.5 text-[11px] font-bold">{t("Clash Meta 客户端")}</div>
             </div>
           </div>
 
-          <nav aria-label="主导航" className="mt-3 flex flex-col gap-1.5">
+          <nav aria-label={t("主导航")} className="mt-3 flex flex-col gap-1.5">
             {PAGES.map((entry) => (
               <NavItem
                 key={entry.id}
-                label={entry.label}
+                label={t(entry.label)}
                 icon={entry.icon}
                 active={entry.id === currentPage}
                 onClick={() => onNavigate(entry.id)}
@@ -78,9 +80,9 @@ export function AppShell({ page, currentPage, status, onNavigate, children }: Ap
           <div className="flex h-16 flex-none items-start justify-between gap-4">
             <div>
               <h1 className="text-[34px] font-black leading-[1.12] tracking-[-1px]">
-                {page.label}
+                {t(page.label)}
               </h1>
-              <div className="mt-0.5 text-xs font-bold">{page.sub}</div>
+              <div className="mt-0.5 text-xs font-bold">{t(page.sub)}</div>
             </div>
             <div ref={setActionsTarget} className="flex h-16 items-center gap-3" />
           </div>
@@ -122,6 +124,7 @@ function NavItem({ label, icon, active, onClick }: NavItemProps) {
 }
 
 function KernelCard({ status }: { status: Status | null }) {
+  const t = useT();
   const running = status !== null;
   return (
     <div className="mt-auto border-2 border-ink bg-surface p-3 shadow-[4px_4px_0_var(--color-mint)]">
@@ -130,12 +133,15 @@ function KernelCard({ status }: { status: Status | null }) {
           aria-hidden
           className={cn("size-2.5 border-2 border-ink", running ? "bg-mint" : "bg-surface")}
         />
-        {running ? "mihomo 运行中" : "内核未连接"}
+        {running ? t("mihomo 运行中") : t("内核未连接")}
       </div>
       <div className="mt-2 text-[10px] font-bold">
         {running
-          ? `运行 ${formatUptime(status.uptimeSeconds)} · 混合端口 ${status.mixedPort}`
-          : "等待内核应答"}
+          ? t("运行 {uptime} · 混合端口 {port}", {
+              uptime: formatUptime(status.uptimeSeconds),
+              port: status.mixedPort,
+            })
+          : t("等待内核应答")}
       </div>
     </div>
   );

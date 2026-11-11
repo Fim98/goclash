@@ -9,10 +9,11 @@ import { DataTable, type DataTableColumn } from "@/components/base/table";
 import type { Gateway, Rule } from "@/gateway/types";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 type TypeFilter = "all" | "domain" | "cidr" | "geoip" | "ruleset";
 
-const TYPE_LABEL: Record<TypeFilter, string> = {
+const TYPE_LABEL: Record<TypeFilter, MessageKey> = {
   all: "全部",
   domain: "DOMAIN",
   cidr: "IP-CIDR",
@@ -38,6 +39,7 @@ function matchesType(rule: Rule, filter: TypeFilter): boolean {
 }
 
 export function RulesPage({ gateway }: { gateway: Gateway }) {
+  const t = useT();
   const [all, setAll] = useState<Rule[] | null>(null);
   const [error, setError] = useState(false);
   const [type, setType] = useState<TypeFilter>("all");
@@ -84,7 +86,7 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
           description: "内核没有应答规则集请求。更新一次规则通常能恢复。",
           actions: (
             <Button variant="ink" onClick={() => void reload()}>
-              更新规则
+              {t("更新规则")}
             </Button>
           ),
         }}
@@ -148,8 +150,8 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
       <HeaderActions>
         <Input
           icon={<Search className="size-3.5" strokeWidth={2.6} />}
-          placeholder="搜索域名或 IP…"
-          aria-label="搜索域名或 IP"
+          placeholder={t("搜索域名或 IP…")}
+          aria-label={t("搜索域名或 IP")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="w-[220px]"
@@ -159,23 +161,23 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
           onClick={() => void reload()}
           disabled={reloading}
         >
-          {reloading ? "更新中…" : "更新规则"}
+          {reloading ? t("更新中…") : t("更新规则")}
         </Button>
       </HeaderActions>
 
       <div className="flex h-12 flex-none items-center gap-2.5">
         {TYPE_ORDER.map((key) => (
           <Chip key={key} active={type === key} onClick={() => setType(key)}>
-            {TYPE_LABEL[key]} {counts[key]}
+            {t(TYPE_LABEL[key])} {counts[key]}
           </Chip>
         ))}
-        <span className="ml-auto text-[10px] font-black">规则自上而下匹配，命中即停</span>
+        <span className="ml-auto text-[10px] font-black">{t("规则自上而下匹配，命中即停")}</span>
         <Chip
           active={sortByHits}
           onClick={() => setSortByHits((value) => !value)}
           className={sortByHits ? "bg-sunny text-on-accent" : undefined}
         >
-          按命中排序
+          {t("按命中排序")}
         </Chip>
       </div>
 
@@ -194,14 +196,14 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
                   setQuery("");
                 }}
               >
-                清除筛选
+                {t("清除筛选")}
               </Button>
             ),
           }}
         />
       ) : (
         <DataTable
-          ariaLabel="规则列表"
+          ariaLabel={t("规则列表")}
           columns={columns}
           rows={visible}
           rowKey={(rule) => `${rule.type}:${rule.payload}`}
@@ -209,12 +211,12 @@ export function RulesPage({ gateway }: { gateway: Gateway }) {
           footer={
             <>
               <span>
-                显示 {visible.length} / {all.length} 条 ·{" "}
+                {t("显示 {shown} / {total} 条 ·", { shown: visible.length, total: all.length })}{" "}
                 {sortByHits
-                  ? "按命中排序仅影响显示，匹配仍按配置顺序自上而下"
-                  : "规则自上而下匹配，命中即停"}
+                  ? t("按命中排序仅影响显示，匹配仍按配置顺序自上而下")
+                  : t("规则自上而下匹配，命中即停")}
               </span>
-              <span className="ml-auto">最后更新 3 小时前</span>
+              <span className="ml-auto">{t("最后更新 3 小时前")}</span>
             </>
           }
         />

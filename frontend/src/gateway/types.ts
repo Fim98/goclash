@@ -9,6 +9,8 @@
  * so the transport can move to Wails events without touching pages.
  */
 
+import type { Locale } from "@/lib/i18n";
+
 export type ProxyMode = "rule" | "global" | "direct";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -95,6 +97,8 @@ export interface Status {
   exitIp: string;
   exitAsn: string;
   exitRegion: string;
+  /** ISO country code behind exitRegion; "" until a lookup succeeds. */
+  exitRegionCode: string;
   nativeIp: boolean;
 }
 
@@ -118,7 +122,8 @@ export interface Settings {
   silentStart: boolean;
   closeAction: "tray" | "quit";
   channel: "stable" | "beta";
-  language: string;
+  /** UI language; see Locale in lib/i18n. */
+  language: Locale;
   theme: "light" | "dark" | "system";
   accent: "coral" | "mint" | "sunny";
   menuBarLatency: boolean;

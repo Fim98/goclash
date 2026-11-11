@@ -80,7 +80,13 @@ describe("Home page", () => {
     const gateway: Gateway = {
       ...base,
       status: () =>
-        Promise.resolve({ ...status, exitAsn: "", exitRegion: "中国台湾", nativeIp: false }),
+        Promise.resolve({
+          ...status,
+          exitAsn: "",
+          exitRegion: "中国台湾",
+          exitRegionCode: "TW",
+          nativeIp: false,
+        }),
     };
 
     render(<App gateway={gateway} />);

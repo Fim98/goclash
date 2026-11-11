@@ -1,5 +1,5 @@
 import { FolderOpen, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/base/button";
 import { Card } from "@/components/base/card";
@@ -9,6 +9,14 @@ import { createMockGateway } from "@/gateway/mock";
 import type { Gateway, ProxyGroup, ProxyMode, Status, TrafficSample } from "@/gateway/types";
 import { formatLatency, formatSpeedFixed } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import {
+  LocaleProvider,
+  localeFromSetting,
+  readStoredLocale,
+  storeLocale,
+  useT,
+  type Locale,
+} from "@/lib/i18n";
 
 const NODE_ROWS = 4;
 
@@ -29,6 +37,37 @@ async function notifyHost(event: "tray:hide" | "tray:open-main") {
  */
 export function TrayApp({ gateway }: { gateway?: Gateway }) {
   const gw = useMemo(() => gateway ?? createMockGateway(), [gateway]);
+  // The popup is its own webview: it reads the language from the same settings
+  // file instead of inheriting the main window's React tree.
+  const [locale, setLocaleState] = useState<Locale>(readStoredLocale);
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    storeLocale(next);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    gw.settings().then(
+      (next) => {
+        if (!cancelled) setLocale(localeFromSetting(next.language));
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [gw, setLocale]);
+
+  return (
+    <LocaleProvider locale={locale} setLocale={setLocale}>
+      <TrayScreen gateway={gw} />
+    </LocaleProvider>
+  );
+}
+
+function TrayScreen({ gateway }: { gateway: Gateway }) {
+  const t = useT();
+  const gw = gateway;
   const [status, setStatus] = useState<Status | null>(null);
   const [groups, setGroups] = useState<ProxyGroup[] | null>(null);
   const [error, setError] = useState(false);
@@ -101,7 +140,7 @@ export function TrayApp({ gateway }: { gateway?: Gateway }) {
         <span className="text-[13px] font-black">GoClash</span>
         <button
           type="button"
-          aria-label="关闭浮窗"
+          aria-label={t("关闭浮窗")}
           onClick={() => void notifyHost("tray:hide")}
           className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-surface"
         >
@@ -111,14 +150,16 @@ export function TrayApp({ gateway }: { gateway?: Gateway }) {
 
       {error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="text-[11px] font-bold">内核没有应答，稍后重试或打开主界面查看日志。</p>
+          <p className="text-[11px] font-bold">
+            {t("内核没有应答，稍后重试或打开主界面查看日志。")}
+          </p>
           <Button variant="ghost" onClick={() => window.location.reload()}>
-            重新载入
+            {t("重新载入")}
           </Button>
         </div>
       ) : !status || !groups ? (
         <div className="grid flex-1 place-items-center text-[11px] font-bold">
-          正在读取内核状态…
+          {t("正在读取内核状态…")}
         </div>
       ) : (
         <TrayBody
@@ -149,6 +190,7 @@ function TrayBody({
   onMode: (mode: ProxyMode) => void;
   onPick: (name: string) => void;
 }) {
+  const t = useT();
   const main = groups.find((group) => group.id === "proxy") ?? groups[0];
   const nodes = main
     ? main.nodes
@@ -172,17 +214,17 @@ function TrayBody({
       >
         <div className="min-w-0">
           <div className="text-2xl font-black leading-[28px] tracking-[-1px]">
-            {connected ? "已连接" : "未连接"}
+            {connected ? t("已连接") : t("未连接")}
           </div>
           <div className="mt-1 truncate text-[10px] font-black">
             {connected
               ? `${status.exitNode} · ${formatLatency(status.exitLatency)}`
-              : "系统代理已关闭"}
+              : t("系统代理已关闭")}
           </div>
         </div>
         <Switch
           size="md"
-          label="系统代理"
+          label={t("系统代理")}
           checked={status.systemProxy}
           onCheckedChange={onToggleProxy}
         />
@@ -191,18 +233,18 @@ function TrayBody({
       <Segmented
         value={status.mode}
         onChange={onMode}
-        ariaLabel="代理模式"
+        ariaLabel={t("代理模式")}
         options={[
-          { value: "rule", label: "规则" },
-          { value: "global", label: "全局" },
-          { value: "direct", label: "直连" },
+          { value: "rule", label: t("规则") },
+          { value: "global", label: t("全局") },
+          { value: "direct", label: t("直连") },
         ]}
         className="w-full [&>button]:flex-1"
       />
 
       <div className="flex items-center text-[9px] font-black tracking-[0.6px]">
-        <span>节点 · {main?.name ?? "—"}</span>
-        <span className="ml-auto font-bold">按延迟排序</span>
+        <span>{t("节点 · {name}", { name: main?.name ?? "—" })}</span>
+        <span className="ml-auto font-bold">{t("按延迟排序")}</span>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -231,8 +273,8 @@ function TrayBody({
       </div>
 
       <div className="flex gap-2.5">
-        <TrafficBox label="下载" value={latest ? formatSpeedFixed(latest.down) : "—"} />
-        <TrafficBox label="上传" value={latest ? formatSpeedFixed(latest.up) : "—"} />
+        <TrafficBox label={t("下载")} value={latest ? formatSpeedFixed(latest.down) : "—"} />
+        <TrafficBox label={t("上传")} value={latest ? formatSpeedFixed(latest.up) : "—"} />
       </div>
 
       <Button
@@ -241,7 +283,7 @@ function TrayBody({
         icon={<FolderOpen className="size-3.5" strokeWidth={2.5} />}
         onClick={() => void notifyHost("tray:open-main")}
       >
-        打开主界面
+        {t("打开主界面")}
       </Button>
     </div>
   );

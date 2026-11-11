@@ -61,4 +61,14 @@ export default defineConfig([
       "react-refresh/only-export-components": "off",
     },
   },
+  {
+    // Same shape as the shadcn carve-out: the i18n module ships one provider
+    // plus the translate() helper, the hooks and the locale types it is built
+    // from. Splitting them would trade a real invariant (every string the UI
+    // renders is a checked key) for a lint rule about hot reload.
+    files: ["frontend/src/lib/i18n.tsx"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 ]);

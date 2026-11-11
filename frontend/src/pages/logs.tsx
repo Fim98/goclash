@@ -9,6 +9,7 @@ import { DataTable, type DataTableColumn } from "@/components/base/table";
 import type { Gateway, LogLevel, LogLine } from "@/gateway/types";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 /** Ring buffer size; the oldest line is dropped once it fills up. */
 const LOG_WINDOW = 512;
@@ -17,7 +18,7 @@ type LevelFilter = "all" | LogLevel;
 
 const LEVEL_ORDER: LevelFilter[] = ["all", "debug", "info", "warn", "error"];
 
-const LEVEL_LABEL: Record<LevelFilter, string> = {
+const LEVEL_LABEL: Record<LevelFilter, MessageKey> = {
   all: "全部",
   debug: "debug",
   info: "info",
@@ -33,6 +34,7 @@ const LEVEL_STYLE: Record<LogLevel, string> = {
 };
 
 export function LogsPage({ gateway }: { gateway: Gateway }) {
+  const t = useT();
   const [lines, setLines] = useState<LogLine[]>([]);
   const [ready, setReady] = useState(false);
   const [level, setLevel] = useState<LevelFilter>("all");
@@ -115,24 +117,29 @@ export function LogsPage({ gateway }: { gateway: Gateway }) {
     <div className="flex min-h-0 flex-1 flex-col gap-5">
       <HeaderActions>
         <Button variant="ghost" onClick={() => void clear()}>
-          清空
+          {t("清空")}
         </Button>
         <Button
           icon={<FolderOpen className="size-3.5" strokeWidth={2.5} />}
           onClick={() => void gateway.openLogDirectory()}
         >
-          日志目录
+          {t("日志目录")}
         </Button>
       </HeaderActions>
 
       <div className="flex h-12 flex-none items-center gap-2.5">
         {LEVEL_ORDER.map((key) => (
           <Chip key={key} active={level === key} onClick={() => setLevel(key)}>
-            {LEVEL_LABEL[key]} {counts[key]}
+            {t(LEVEL_LABEL[key])} {counts[key]}
           </Chip>
         ))}
-        <span className="ml-auto text-[10px] font-black">自动滚动</span>
-        <Switch size="sm" label="自动滚动" checked={autoScroll} onCheckedChange={setAutoScroll} />
+        <span className="ml-auto text-[10px] font-black">{t("自动滚动")}</span>
+        <Switch
+          size="sm"
+          label={t("自动滚动")}
+          checked={autoScroll}
+          onCheckedChange={setAutoScroll}
+        />
       </div>
 
       {visible.length === 0 ? (
@@ -140,26 +147,26 @@ export function LogsPage({ gateway }: { gateway: Gateway }) {
           state="empty"
           empty={{
             icon: <ScrollText />,
-            title: lines.length === 0 ? "还没有日志输出" : "该等级下暂无输出",
+            title: lines.length === 0 ? t("还没有日志输出") : t("该等级下暂无输出"),
             description:
               lines.length === 0
-                ? "连接活动、DNS 查询与规则命中会实时写到这里。"
-                : "换一个等级，或清除筛选查看全部输出。",
+                ? t("连接活动、DNS 查询与规则命中会实时写到这里。")
+                : t("换一个等级，或清除筛选查看全部输出。"),
             action:
               lines.length === 0 ? (
                 <Button variant="ghost" onClick={() => void gateway.openLogDirectory()}>
-                  打开日志目录
+                  {t("打开日志目录")}
                 </Button>
               ) : (
                 <Button variant="ghost" onClick={() => setLevel("all")}>
-                  查看全部
+                  {t("查看全部")}
                 </Button>
               ),
           }}
         />
       ) : (
         <DataTable
-          ariaLabel="日志输出"
+          ariaLabel={t("日志输出")}
           columns={columns}
           rows={visible}
           rowKey={(line, index) => `${line.time}-${index}`}
@@ -169,10 +176,10 @@ export function LogsPage({ gateway }: { gateway: Gateway }) {
           footer={
             <>
               <span>
-                {autoScroll ? "自动滚动已开启" : "自动滚动已暂停"} · 缓冲区 {lines.length} 条 ·{" "}
-                {level === "all" ? "显示全部等级" : `仅显示 ${level}`}
+                {autoScroll ? t("自动滚动已开启") : t("自动滚动已暂停")} · 缓冲区 {lines.length} 条
+                · {level === "all" ? t("显示全部等级") : t("仅显示 {level}", { level })}
               </span>
-              <span className="ml-auto tabular-nums">最后一条 {last ? last.time : "—"}</span>
+              <span className="ml-auto tabular-numst(">最后一条 {last ? last.time : ")—"}</span>
             </>
           }
         />

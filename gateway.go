@@ -107,7 +107,10 @@ type Status struct {
 	ExitIP        string `json:"exitIp"`
 	ExitASN       string `json:"exitAsn"`
 	ExitRegion    string `json:"exitRegion"`
-	NativeIP      bool   `json:"nativeIp"`
+	// The ISO code the name above was derived from; the UI re-labels it in the
+	// user's language instead of trusting a pre-rendered string.
+	ExitRegionCode string `json:"exitRegionCode"`
+	NativeIP       bool   `json:"nativeIp"`
 }
 
 // ServiceStatus is what the TUN row needs to render its hint.
@@ -290,6 +293,7 @@ func (g *Gateway) Status(ctx context.Context) (Status, error) {
 		status.ExitIP = info.IP
 		status.ExitASN = info.Label()
 		status.ExitRegion = regionName(info.Country)
+		status.ExitRegionCode = strings.ToUpper(info.Country)
 		status.NativeIP = info.Native
 	}
 	return status, nil
@@ -1371,6 +1375,17 @@ func (g *Gateway) loadSettings() Settings {
 	if settings.ControllerAddr == "" {
 		settings.ControllerAddr = "127.0.0.1:9090"
 	}
+	// Older builds stored the display name; settings written by hand may hold
+	// garbage. Both normalise here so the UI only ever sees a locale code.
+	switch settings.Language {
+	case "zh-CN", "en-US":
+	default:
+		if strings.HasPrefix(strings.ToLower(settings.Language), "en") {
+			settings.Language = "en-US"
+		} else {
+			settings.Language = "zh-CN"
+		}
+	}
 	return settings
 }
 
@@ -1421,7 +1436,7 @@ func defaultSettings() Settings {
 		LaunchAtLogin:          true,
 		CloseAction:            "tray",
 		Channel:                "stable",
-		Language:               "简体中文",
+		Language:               "zh-CN",
 		Theme:                  "light",
 		Accent:                 "coral",
 		MenuBarLatency:         true,

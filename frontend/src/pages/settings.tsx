@@ -12,8 +12,16 @@ import { applyTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
+import {
+  LANGUAGE_LABEL,
+  LOCALES,
+  useLocale,
+  useSetLocale,
+  useT,
+  type MessageKey,
+} from "@/lib/i18n";
 
-const ACCENT_LABEL: Record<Settings["accent"], string> = {
+const ACCENT_LABEL: Record<Settings["accent"], MessageKey> = {
   coral: "珊瑚",
   mint: "薄荷",
   sunny: "阳光",
@@ -22,6 +30,9 @@ const ACCENT_LABEL: Record<Settings["accent"], string> = {
 const ACCENT_ORDER: Settings["accent"][] = ["coral", "mint", "sunny"];
 
 export function SettingsPage({ gateway }: { gateway: Gateway }) {
+  const t = useT();
+  const locale = useLocale();
+  const setLocale = useSetLocale();
   const { status, refresh: refreshStatus, setStatus } = useAppStatus();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [service, setService] = useState<ServiceStatus | null>(null);
@@ -96,7 +107,7 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
     } catch (cause) {
       // Keep the card honest: re-read the disk instead of showing a version
       // that was never installed.
-      setCoreError(cause instanceof Error ? cause.message : "内核操作失败");
+      setCoreError(cause instanceof Error ? cause.message : t("内核操作失败"));
       try {
         setCore(await gateway.coreStatus());
       } catch {
@@ -169,7 +180,7 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
           description: "内核没有应答设置请求。稍后重试；若持续失败请查看日志。",
           actions: (
             <Button variant="ink" onClick={() => void retry()}>
-              重试
+              {t("重试")}
             </Button>
           ),
         }}
@@ -187,26 +198,26 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
           icon={<FolderOpen className="size-4" strokeWidth={2.5} />}
           onClick={() => void gateway.openConfigDirectory()}
         >
-          打开配置目录
+          {t("打开配置目录")}
         </Button>
       </HeaderActions>
 
       <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-5">
         <SettingsCard
-          title="网络"
+          title={t("网络")}
           hint="NETWORK"
           tone="mint"
           icon={<Network className="size-3.5" strokeWidth={2.4} />}
         >
-          <Row label="系统代理">
+          <Row label={t("系统代理")}>
             <Switch
               size="sm"
-              label="系统代理"
+              label={t("系统代理")}
               checked={settings.systemProxy}
               onCheckedChange={(next) => void patch({ systemProxy: next })}
             />
           </Row>
-          <Row label="TUN 模式 · 需要系统服务">
+          <Row label={t("TUN 模式 · 需要系统服务")}>
             <div className="flex flex-none items-center gap-2">
               {service?.state === "running" ? (
                 <button
@@ -215,10 +226,10 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
                   onClick={() => void removeService()}
                   className="cursor-pointer text-[10px] font-black underline decoration-2 underline-offset-2 disabled:opacity-40"
                 >
-                  服务运行中 · 卸载
+                  {t("服务运行中 · 卸载")}
                 </button>
               ) : service?.state === "unsupported" ? (
-                <span className="text-[10px] font-bold">当前系统不支持</span>
+                <span className="text-[10px] font-bold">{t("当前系统不支持")}</span>
               ) : (
                 <button
                   type="button"
@@ -226,25 +237,25 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
                   onClick={() => void installService()}
                   className="h-7 cursor-pointer border-2 border-ink bg-surface px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {serviceBusy ? "安装中…" : "安装服务"}
+                  {serviceBusy ? t("安装中…") : t("安装服务")}
                 </button>
               )}
               <Switch
                 size="sm"
-                label="TUN 模式"
+                label={t("TUN 模式")}
                 checked={settings.tun}
                 disabled={service?.state === "unsupported"}
                 onCheckedChange={(next) => void patch({ tun: next })}
               />
             </div>
           </Row>
-          <Row label="混合端口">
+          <Row label={t("混合端口")}>
             <ValueBox>{settings.mixedPort}</ValueBox>
           </Row>
-          <Row label="允许局域网连接">
+          <Row label={t("允许局域网连接")}>
             <Switch
               size="sm"
-              label="允许局域网连接"
+              label={t("允许局域网连接")}
               checked={settings.allowLan}
               onCheckedChange={(next) => void patch({ allowLan: next })}
             />
@@ -252,28 +263,28 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
         </SettingsCard>
 
         <SettingsCard
-          title="内核"
+          title={t("内核")}
           hint="CORE"
           tone="sunny"
           icon={<Cpu className="size-3.5" strokeWidth={2.4} />}
         >
-          <Row label="代理模式">
+          <Row label={t("代理模式")}>
             <Segmented
               value={status?.mode ?? settings.mode}
               onChange={(mode) => void changeMode(mode)}
-              ariaLabel="代理模式"
+              ariaLabel={t("代理模式")}
               options={[
-                { value: "rule", label: "规则" },
-                { value: "global", label: "全局" },
-                { value: "direct", label: "直连" },
+                { value: "rule", label: t("规则") },
+                { value: "global", label: t("全局") },
+                { value: "direct", label: t("直连") },
               ]}
               className="border-2 [&>button]:h-7 [&>button]:px-3 [&>button]:text-[10px]"
             />
           </Row>
-          <Row label="日志等级">
+          <Row label={t("日志等级")}>
             <ValueBox>{settings.logLevel}</ValueBox>
           </Row>
-          <Row label="内核版本">
+          <Row label={t("内核版本")}>
             <CoreVersionRow
               core={core}
               busy={coreBusy}
@@ -282,10 +293,10 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
               onDownload={() => void runCoreAction("download")}
             />
           </Row>
-          <Row label="内核自动更新">
+          <Row label={t("内核自动更新")}>
             <Switch
               size="sm"
-              label="内核自动更新"
+              label={t("内核自动更新")}
               checked={settings.coreAutoUpdate}
               onCheckedChange={(next) => void patch({ coreAutoUpdate: next })}
             />
@@ -293,12 +304,12 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
         </SettingsCard>
 
         <SettingsCard
-          title="外观"
+          title={t("外观")}
           hint="APPEARANCE"
           tone="coral"
           icon={<Palette className="size-3.5" strokeWidth={2.4} />}
         >
-          <Row label="主题">
+          <Row label={t("主题")}>
             <Segmented
               value={settings.theme}
               onChange={(theme) => {
@@ -307,33 +318,44 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
                 applyTheme(theme);
                 void patch({ theme });
               }}
-              ariaLabel="主题"
+              ariaLabel={t("主题")}
               options={[
-                { value: "light", label: "浅色" },
-                { value: "dark", label: "深色" },
-                { value: "system", label: "跟随" },
+                { value: "light", label: t("浅色") },
+                { value: "dark", label: t("深色") },
+                { value: "system", label: t("跟随") },
               ]}
               className="border-2 [&>button]:h-7 [&>button]:px-3 [&>button]:text-[10px]"
             />
           </Row>
-          <Row label="菜单栏显示实时延迟">
+          <Row label={t("菜单栏显示实时延迟")}>
             <Switch
               size="sm"
-              label="菜单栏显示实时延迟"
+              label={t("菜单栏显示实时延迟")}
               checked={settings.menuBarLatency}
               onCheckedChange={(next) => void patch({ menuBarLatency: next })}
             />
           </Row>
-          <Row label="界面语言">
-            <ValueBox>{settings.language}</ValueBox>
+          <Row label={t("界面语言")}>
+            <Segmented
+              value={locale}
+              onChange={(next) => {
+                // Repaint first, persist second: a language switch must not
+                // wait for a round trip.
+                setLocale(next);
+                void patch({ language: next });
+              }}
+              ariaLabel={t("界面语言")}
+              options={LOCALES.map((code) => ({ value: code, label: LANGUAGE_LABEL[code] }))}
+              className="border-2 [&>button]:h-7 [&>button]:px-3 [&>button]:text-[10px]"
+            />
           </Row>
-          <Row label="强调色">
+          <Row label={t("强调色")}>
             <div className="flex items-center gap-1.5">
               {ACCENT_ORDER.map((accent) => (
                 <button
                   key={accent}
                   type="button"
-                  aria-label={`强调色 ${ACCENT_LABEL[accent]}`}
+                  aria-label={t("强调色 {accent}", { accent: t(ACCENT_LABEL[accent]) })}
                   aria-pressed={settings.accent === accent}
                   onClick={() => void patch({ accent })}
                   className={cn(
@@ -348,32 +370,34 @@ export function SettingsPage({ gateway }: { gateway: Gateway }) {
         </SettingsCard>
 
         <SettingsCard
-          title="系统"
+          title={t("系统")}
           hint="SYSTEM"
           tone="seafoam"
           icon={<Monitor className="size-3.5" strokeWidth={2.4} />}
         >
-          <Row label="开机自动启动">
+          <Row label={t("开机自动启动")}>
             <Switch
               size="sm"
-              label="开机自动启动"
+              label={t("开机自动启动")}
               checked={settings.launchAtLogin}
               onCheckedChange={(next) => void patch({ launchAtLogin: next })}
             />
           </Row>
-          <Row label="静默启动 · 不显示主窗口">
+          <Row label={t("静默启动 · 不显示主窗口")}>
             <Switch
               size="sm"
-              label="静默启动"
+              label={t("静默启动")}
               checked={settings.silentStart}
               onCheckedChange={(next) => void patch({ silentStart: next })}
             />
           </Row>
-          <Row label="关闭窗口时">
-            <ValueBox>{settings.closeAction === "tray" ? "最小化到托盘" : "退出程序"}</ValueBox>
+          <Row label={t("关闭窗口时")}>
+            <ValueBox>
+              {settings.closeAction === "tray" ? t("最小化到托盘") : t("退出程序")}
+            </ValueBox>
           </Row>
-          <Row label="更新通道">
-            <ValueBox>{settings.channel === "stable" ? "稳定版" : "测试版"}</ValueBox>
+          <Row label={t("更新通道")}>
+            <ValueBox>{settings.channel === "stable" ? t("稳定版") : t("测试版")}</ValueBox>
           </Row>
         </SettingsCard>
       </div>
@@ -447,12 +471,13 @@ function CoreVersionRow({
   onCheck: () => void;
   onDownload: () => void;
 }) {
+  const t = useT();
   if (!core) return <ValueBox>—</ValueBox>;
 
   if (core.state === "downloading") {
     return (
       <div className="flex w-[164px] flex-none items-center gap-2">
-        <Progress value={core.progress} label="内核下载进度" />
+        <Progress value={core.progress} label={t("内核下载进度")} />
         <span className="w-8 text-right text-[10px] font-black tabular-nums">
           {Math.round(core.progress * 100)}%
         </span>
@@ -461,7 +486,7 @@ function CoreVersionRow({
   }
 
   const outdated = core.state === "outdated" && core.latest !== "";
-  const label = core.version ? `v${core.version}` : "未安装";
+  const label = core.version ? `v${core.version}` : t("未安装");
 
   return (
     <div className="flex flex-none flex-col items-end gap-0.5">
@@ -480,7 +505,13 @@ function CoreVersionRow({
           onClick={core.state === "ready" ? onCheck : onDownload}
           className="h-7 cursor-pointer border-2 border-ink bg-surface px-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? "…" : core.state === "ready" ? "检查更新" : outdated ? "更新" : "下载内核"}
+          {busy
+            ? "…"
+            : core.state === "ready"
+              ? t("检查更新")
+              : outdated
+                ? t("更新")
+                : t("下载内核")}
         </button>
       </div>
       {error ? (

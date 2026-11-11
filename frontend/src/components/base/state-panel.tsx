@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export type PanelState = "loading" | "error" | "empty" | "ready";
 
@@ -68,6 +69,7 @@ function IconBox({ children, tone }: { children: ReactNode; tone: string }) {
  * recovery actions, empty = icon plus title plus the primary action.
  */
 export function AsyncPanel({ state, error, empty, children, className }: AsyncPanelProps) {
+  const t = useT();
   if (state === "loading") {
     return (
       <div className={cn("flex flex-1 flex-col border-4 border-ink bg-surface", className)}>
@@ -88,7 +90,7 @@ export function AsyncPanel({ state, error, empty, children, className }: AsyncPa
       >
         <Centered>
           <IconBox tone="var(--color-coral)">{error?.icon}</IconBox>
-          <Title>{error?.title ?? "出错了"}</Title>
+          <Title>{error?.title ?? t("出错了")}</Title>
           <Description>{error?.description}</Description>
           {error?.actions ? <div className="mt-1 flex gap-2.5">{error.actions}</div> : null}
         </Centered>
@@ -106,7 +108,7 @@ export function AsyncPanel({ state, error, empty, children, className }: AsyncPa
       >
         <Centered>
           <IconBox tone="var(--color-white)">{empty?.icon}</IconBox>
-          <Title>{empty?.title ?? "暂无内容"}</Title>
+          <Title>{empty?.title ?? t("暂无内容")}</Title>
           <Description>{empty?.description}</Description>
           {empty?.action ? <div className="mt-1">{empty.action}</div> : null}
         </Centered>

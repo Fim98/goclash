@@ -22,19 +22,21 @@ import { Switch } from "@/components/base/switch";
 import { Tag } from "@/components/base/tag";
 import type { CoreStatus, Gateway, ProxyMode, Status, TrafficSample } from "@/gateway/types";
 import { formatLatency, formatSpeedFixed } from "@/lib/format";
+import { REGION_NAME } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 import { HeaderActions } from "@/shell/header-actions";
 import { useAppStatus } from "@/shell/status-context";
 import type { PageNavigate } from "@/shell/pages";
 
 import { TrafficChart } from "./traffic-chart";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 /** Rolling window behind the chart; the gateway ticks at 1 Hz. */
 const TRAFFIC_WINDOW = 60;
 
-const MODE_LABEL: Record<ProxyMode, string> = { rule: "规则", global: "全局", direct: "直连" };
+const MODE_LABEL: Record<ProxyMode, MessageKey> = { rule: "规则", global: "全局", direct: "直连" };
 
-const MODE_CAPTION: Record<ProxyMode, string> = {
+const MODE_CAPTION: Record<ProxyMode, MessageKey> = {
   rule: "按规则集自动分流，命中即走对应策略组",
   global: "全部流量经当前节点转发，不做分流",
   direct: "全部流量直连，不经过任何节点",
@@ -49,6 +51,7 @@ const RANGE_OPTIONS = [
 type RangeValue = (typeof RANGE_OPTIONS)[number]["value"];
 
 export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: PageNavigate }) {
+  const t = useT();
   const { status, error, setStatus, refresh } = useAppStatus();
   const [samples, setSamples] = useState<TrafficSample[]>([]);
   const [range, setRange] = useState<RangeValue>("1m");
@@ -90,7 +93,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
       setCore(await gateway.downloadCore());
       await refresh();
     } catch (cause) {
-      setCoreError(cause instanceof Error ? cause.message : "内核下载失败");
+      setCoreError(cause instanceof Error ? cause.message : t("内核下载失败"));
     } finally {
       setCoreBusy(false);
     }
@@ -104,9 +107,10 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
           state="empty"
           empty={{
             icon: <Cpu />,
-            title: downloading ? "正在下载内核" : "还没有内核",
-            description:
+            title: downloading ? t("正在下载内核") : t("还没有内核"),
+            description: t(
               "GoClash 不自带内核。下载 mihomo 官方发布包（约 30MB），装好即可连接节点。",
+            ),
             action: (
               <div className="flex flex-col items-center gap-3">
                 <Button
@@ -115,11 +119,11 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
                   disabled={coreBusy || downloading}
                   onClick={() => void installCore()}
                 >
-                  {coreBusy ? "下载中…" : "下载内核"}
+                  {coreBusy ? t("下载中…") : t("下载内核")}
                 </Button>
                 {downloading ? (
                   <div className="flex w-[260px] items-center gap-2">
-                    <Progress value={core.progress} label="内核下载进度" />
+                    <Progress value={core.progress} label={t("内核下载进度")} />
                     <span className="w-8 text-right text-[10px] font-black tabular-nums">
                       {Math.round(core.progress * 100)}%
                     </span>
@@ -147,11 +151,11 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
           actions: (
             <>
               <Button variant="ink" onClick={() => void restartCore(gateway, refresh)}>
-                重启内核
+                {t("重启内核")}
               </Button>
               <Button variant="ghost" onClick={() => navigate("logs")}>
                 <ScrollText className="size-4" strokeWidth={2.5} />
-                打开日志
+                {t("打开日志")}
               </Button>
             </>
           ),
@@ -163,6 +167,10 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
   if (!status) return <AsyncPanel state="loading" />;
 
   const latest = samples.length > 0 ? samples[samples.length - 1] : undefined;
+  // The gateway sends a code plus a Chinese name; label it in the UI language
+  // and fall back to whatever it sent when the code is unknown.
+  const regionKey = REGION_NAME[status.exitRegionCode];
+  const regionLabel = regionKey ? t(regionKey) : status.exitRegion;
 
   async function refreshExit() {
     try {
@@ -203,14 +211,14 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
       <HeaderActions>
-        <IconButton size="md" aria-label="打开设置" onClick={() => navigate("settings")}>
+        <IconButton size="md" aria-label={t("打开设置")} onClick={() => navigate("settings")}>
           <Settings className="size-4" strokeWidth={2.5} />
         </IconButton>
         <Button
           icon={<Zap className="size-3.5" strokeWidth={2.5} />}
           onClick={() => void gateway.testAllGroups()}
         >
-          立即测速
+          {t("立即测速")}
         </Button>
       </HeaderActions>
 
@@ -218,7 +226,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
 
       <div className="grid h-[108px] flex-none grid-cols-3 gap-5">
         <StatCard
-          label="下载速度"
+          label={t("下载速度")}
           value={
             latest ? (
               formatSpeedFixed(latest.down)
@@ -231,7 +239,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
           shadow="coral"
         />
         <StatCard
-          label="上传速度"
+          label={t("上传速度")}
           value={
             latest ? (
               formatSpeedFixed(latest.up)
@@ -244,7 +252,7 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
           shadow="mint"
         />
         <StatCard
-          label="活动连接"
+          label={t("活动连接")}
           value={
             latest ? (
               String(latest.connections)
@@ -261,21 +269,21 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
       <div className="flex min-h-0 flex-1 gap-5">
         <Card shadow="coral" className="flex min-w-0 flex-1 flex-col gap-3 p-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-black tracking-[-0.2px]">流量统计</h2>
+            <h2 className="text-lg font-black tracking-[-0.2px]">{t("流量统计")}</h2>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-[11px] font-black">
                 <i aria-hidden className="size-2.5 border-2 border-ink bg-coral" />
-                下载
+                {t("下载")}
               </span>
               <span className="flex items-center gap-1.5 text-[11px] font-black">
                 <i aria-hidden className="size-2.5 border-2 border-ink bg-mint" />
-                上传
+                {t("上传")}
               </span>
             </div>
             <Segmented
               value={range}
               onChange={setRange}
-              ariaLabel="统计窗口"
+              ariaLabel={t("统计窗口")}
               options={RANGE_OPTIONS}
               className="ml-auto border-2 [&>button]:h-7 [&>button]:px-2.5 [&>button]:text-[10px]"
             />
@@ -298,14 +306,14 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
             <span>-60s</span>
             <span>-40s</span>
             <span>-20s</span>
-            <span>现在</span>
+            <span>{t("现在")}</span>
           </div>
         </Card>
 
         <div className="flex w-[340px] flex-none flex-col gap-5">
           <Card shadow="sunny" className="flex h-[162px] flex-none flex-col gap-3 p-5">
             <div className="flex items-center">
-              <h2 className="text-[15px] font-black">代理模式</h2>
+              <h2 className="text-[15px] font-black">{t("代理模式")}</h2>
               <span className="ml-auto text-[10px] font-black tracking-[1px]">
                 {status.mode.toUpperCase()}
               </span>
@@ -313,23 +321,23 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
             <Segmented
               value={status.mode}
               onChange={(mode) => void changeMode(mode)}
-              ariaLabel="代理模式"
+              ariaLabel={t("代理模式")}
               options={[
-                { value: "rule", label: "规则" },
-                { value: "global", label: "全局" },
-                { value: "direct", label: "直连" },
+                { value: "rule", label: t("规则") },
+                { value: "global", label: t("全局") },
+                { value: "direct", label: t("直连") },
               ]}
               className="w-full [&>button]:flex-1"
             />
-            <p className="text-[11px] font-bold leading-[15px]">{MODE_CAPTION[status.mode]}</p>
+            <p className="text-[11px] font-bold leading-[15px]">{t(MODE_CAPTION[status.mode])}</p>
           </Card>
 
           <Card shadow="mint" className="flex h-[162px] flex-none flex-col gap-2 p-5">
             <div className="flex items-center">
-              <h2 className="text-[15px] font-black">出口 IP</h2>
+              <h2 className="text-[15px] font-black">{t("出口 IP")}</h2>
               <button
                 type="button"
-                aria-label="刷新出口信息"
+                aria-label={t("刷新出口信息")}
                 onClick={() => void refreshExit()}
                 className="ml-auto flex size-6 cursor-pointer items-center justify-center border-2 border-ink bg-surface transition-transform duration-300 hover:rotate-45"
               >
@@ -342,12 +350,12 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
             {status.exitAsn ? (
               <div className="text-[10px] font-bold tracking-[0.3px]">{status.exitAsn}</div>
             ) : status.exitIp ? null : (
-              <div className="text-[10px] font-bold tracking-[0.3px]">出口地区未获取</div>
+              <div className="text-[10px] font-bold tracking-[0.3px]">{t("出口地区未获取")}</div>
             )}
             {status.exitRegion ? (
               <div className="mt-auto flex gap-2">
-                <Tag tone="seafoam">{status.exitRegion}</Tag>
-                {status.nativeIp ? <Tag tone="sunny">原生 IP</Tag> : null}
+                <Tag tone="seafoam">{regionLabel}</Tag>
+                {status.nativeIp ? <Tag tone="sunny">{t("原生 IP")}</Tag> : null}
               </div>
             ) : null}
           </Card>
@@ -364,6 +372,7 @@ interface HeroProps {
 }
 
 function Hero({ status, latest, onToggle }: HeroProps) {
+  const t = useT();
   const connected = status.connected;
 
   return (
@@ -379,27 +388,31 @@ function Hero({ status, latest, onToggle }: HeroProps) {
         <div className="flex items-center gap-2">
           {connected ? (
             <Tag tone="white" dot>
-              已连接
+              {t("已连接")}
             </Tag>
           ) : (
             <Tag
               tone="white"
               icon={<i aria-hidden className="size-2 border-2 border-ink bg-peach" />}
             >
-              未连接
+              {t("未连接")}
             </Tag>
           )}
-          {status.systemProxy ? <Tag tone="ink">系统代理 ON</Tag> : null}
+          {status.systemProxy ? <Tag tone="ink">{t("系统代理 ON")}</Tag> : null}
         </div>
 
         <div className="truncate text-[40px] font-black leading-[44px] tracking-[-1.4px]">
-          {connected ? status.exitNode : "未连接"}
+          {connected ? status.exitNode : t("未连接")}
         </div>
 
         <div className="truncate text-sm font-bold">
           {connected
-            ? `${MODE_LABEL[status.mode]}模式 · 延迟 ${formatLatency(status.exitLatency)} · 出口 ${status.exitIp || "—"}`
-            : "系统代理已关闭 · 流量不再经过 GoClash"}
+            ? t("{mode}模式 · 延迟 {latency} · 出口 {ip}", {
+                mode: t(MODE_LABEL[status.mode]),
+                latency: formatLatency(status.exitLatency),
+                ip: status.exitIp || "—",
+              })
+            : t("系统代理已关闭 · 流量不再经过 GoClash")}
         </div>
 
         {connected && latest ? (
@@ -413,11 +426,11 @@ function Hero({ status, latest, onToggle }: HeroProps) {
       <div className="flex flex-none flex-col items-center gap-2.5">
         <Switch
           size="xl"
-          label="系统代理"
+          label={t("系统代理")}
           checked={status.systemProxy}
           onCheckedChange={onToggle}
         />
-        <span className="text-xs font-black">系统代理</span>
+        <span className="text-xs font-black">{t("系统代理")}</span>
       </div>
     </Card>
   );

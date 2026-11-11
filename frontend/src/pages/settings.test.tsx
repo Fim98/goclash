@@ -180,3 +180,40 @@ describe("Settings page — core binary", () => {
     expect(screen.getByText("v1.19.4")).toBeInTheDocument();
   });
 });
+
+describe("Settings page — language", () => {
+  it("switches the whole window to English and persists the choice", async () => {
+    const base = createMockGateway();
+    const updateSettings = vi.fn((patch: Parameters<Gateway["updateSettings"]>[0]) =>
+      base.updateSettings(patch),
+    );
+
+    render(<App gateway={{ ...base, updateSettings }} />);
+    await userEvent.click(screen.getByRole("button", { name: "设置" }));
+    await screen.findByText("外观");
+
+    await userEvent.click(screen.getByRole("button", { name: "English" }));
+
+    // The page repaints without a reload, and the choice reaches the gateway.
+    expect(await screen.findByText("Appearance")).toBeInTheDocument();
+    expect(updateSettings).toHaveBeenCalledWith({ language: "en-US" });
+
+    const nav = screen.getByRole("navigation", { name: "Main navigation" });
+    await userEvent.click(within(nav).getByRole("button", { name: "Home" }));
+
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+  });
+
+  it("boots in the language the settings file saved", async () => {
+    const base = createMockGateway();
+    const gateway: Gateway = {
+      ...base,
+      settings: async () => ({ ...(await base.settings()), language: "en-US" }),
+    };
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByRole("button", { name: "Home" })).toBeInTheDocument();
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+  });
+});

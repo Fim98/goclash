@@ -1,4 +1,5 @@
 import type { TrafficSample } from "@/gateway/types";
+import { useT } from "@/lib/i18n";
 
 /**
  * The home traffic graph, hand-drawn SVG after the 01 board: coral download
@@ -19,6 +20,7 @@ const PAD_X = 8;
 const PAD_Y = 4;
 
 export function TrafficChart({ samples }: { samples: TrafficSample[] }) {
+  const t = useT();
   const gridLines = [1, 2, 3, 4].map((i) => (HEIGHT * i) / 5);
 
   const count = samples.length;
@@ -47,7 +49,7 @@ export function TrafficChart({ samples }: { samples: TrafficSample[] }) {
   return (
     <svg
       role="img"
-      aria-label="实时流量图"
+      aria-label={t("实时流量图")}
       width={WIDTH}
       height={HEIGHT}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
