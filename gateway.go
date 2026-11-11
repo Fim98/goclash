@@ -1,0 +1,964 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"changeme/internal/mihomo"
+)
+
+// Domain shapes shared with the frontend (see frontend/src/gateway/types.ts).
+// Field names must stay camelCase — the TS contract consumes them directly.
+
+type ProxyNode struct {
+	Name    string `json:"name"`
+	Latency *int   `json:"latency"`
+}
+
+type ProxyGroup struct {
+	ID       string      `json:"id"`
+	Name     string      `json:"name"`
+	Strategy string      `json:"strategy"`
+	Nodes    []ProxyNode `json:"nodes"`
+	Selected string      `json:"selected,omitempty"`
+}
+
+type TrafficSample struct {
+	Down        int64 `json:"down"`
+	Up          int64 `json:"up"`
+	Connections int   `json:"connections"`
+}
+
+type LogLine struct {
+	Time    string `json:"time"`
+	Level   string `json:"level"`
+	Message string `json:"message"`
+}
+
+type Connection struct {
+	ID              string `json:"id"`
+	Host            string `json:"host"`
+	Rule            string `json:"rule"`
+	Exit            string `json:"exit"`
+	UploadBytes     int64  `json:"uploadBytes"`
+	DownloadBytes   int64  `json:"downloadBytes"`
+	DurationSeconds int    `json:"durationSeconds"`
+	Kind            string `json:"kind"`
+}
+
+type Rule struct {
+	Type    string `json:"type"`
+	Payload string `json:"payload"`
+	Policy  string `json:"policy"`
+	Hits    int    `json:"hits"`
+}
+
+type Profile struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	UsedBytes  int64  `json:"usedBytes"`
+	TotalBytes int64  `json:"totalBytes"`
+	NodeCount  int    `json:"nodeCount"`
+	ExpiresAt  string `json:"expiresAt"`
+	UpdatedAt  string `json:"updatedAt"`
+	Current    bool   `json:"current"`
+	// File and Source never leave Go: the UI only needs the masked URL.
+	File   string `json:"-"`
+	Source string `json:"-"`
+}
+
+type Status struct {
+	Connected     bool   `json:"connected"`
+	Mode          string `json:"mode"`
+	SystemProxy   bool   `json:"systemProxy"`
+	Tun           bool   `json:"tun"`
+	MixedPort     int    `json:"mixedPort"`
+	CoreVersion   string `json:"coreVersion"`
+	UptimeSeconds int    `json:"uptimeSeconds"`
+	ExitNode      string `json:"exitNode"`
+	ExitLatency   *int   `json:"exitLatency"`
+	ExitIP        string `json:"exitIp"`
+	ExitASN       string `json:"exitAsn"`
+	ExitRegion    string `json:"exitRegion"`
+	NativeIP      bool   `json:"nativeIp"`
+}
+
+type Settings struct {
+	SystemProxy            bool   `json:"systemProxy"`
+	Tun                    bool   `json:"tun"`
+	MixedPort              int    `json:"mixedPort"`
+	AllowLan               bool   `json:"allowLan"`
+	Mode                   string `json:"mode"`
+	LogLevel               string `json:"logLevel"`
+	AutoUpdateEnabled      bool   `json:"autoUpdateEnabled"`
+	AutoUpdateIntervalHour int    `json:"autoUpdateIntervalHours"`
+	AutoSwitchLowest       bool   `json:"autoSwitchLowestLatency"`
+	ProxyDownload          bool   `json:"proxyDownload"`
+	ChainedProxy           bool   `json:"chainedProxy"`
+	CoreAutoUpdate         bool   `json:"coreAutoUpdate"`
+	LaunchAtLogin          bool   `json:"launchAtLogin"`
+	SilentStart            bool   `json:"silentStart"`
+	CloseAction            string `json:"closeAction"`
+	Channel                string `json:"channel"`
+	Language               string `json:"language"`
+	Theme                  string `json:"theme"`
+	Accent                 string `json:"accent"`
+	MenuBarLatency         bool   `json:"menuBarLatency"`
+
+	// Not surfaced in the UI yet: where the controller lives and which binary
+	// to spawn for the core.
+	ControllerAddr   string `json:"controllerAddr,omitempty"`
+	ControllerSecret string `json:"controllerSecret,omitempty"`
+	CorePath         string `json:"corePath,omitempty"`
+}
+
+// Gateway is the Wails service the windows bind to. Every method maps onto the
+// kernel's external controller; settings and profile metadata live in the app
+// config directory so they survive restarts.
+type Gateway struct {
+	app    *application.App
+	client *mihomo.Client
+	core   *CoreProcess
+
+	dir          string
+	settingsMu   sync.Mutex
+	settings     Settings
+	profilesMu   sync.Mutex
+	profiles     []Profile
+	activeID     string
+	started      time.Time
+	connectionNo atomic.Int64
+}
+
+func NewGateway() *Gateway {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir = "."
+	}
+	return newGatewayAt(filepath.Join(dir, "GoClash"))
+}
+
+// newGatewayAt is the seam tests use: same wiring, a throwaway directory.
+func newGatewayAt(dir string) *Gateway {
+	_ = os.MkdirAll(filepath.Join(dir, "profiles"), 0o755)
+
+	g := &Gateway{dir: dir, started: time.Now()}
+	g.settings = g.loadSettings()
+	g.client = mihomo.New(g.settings.ControllerAddr, g.settings.ControllerSecret)
+	g.loadProfiles()
+	if g.settings.CorePath != "" {
+		g.core = &CoreProcess{bin: g.settings.CorePath, dir: g.dir, config: g.activeConfigPath()}
+	}
+	return g
+}
+
+// Attach gives the service the app handle used to emit events.
+func (g *Gateway) Attach(app *application.App) { g.app = app }
+
+// Ping proves the Go bridge exists; the frontend falls back to demo data only
+// when this call cannot be made at all (plain browser, tests).
+func (g *Gateway) Ping() bool { return true }
+
+func (g *Gateway) Status(ctx context.Context) (Status, error) {
+	version, err := g.client.Version(ctx)
+	if err != nil {
+		return Status{}, err
+	}
+	configs, err := g.client.Configs(ctx)
+	if err != nil {
+		return Status{}, err
+	}
+	proxies, _ := g.client.Proxies(ctx)
+	exitNode, latency := currentExit(proxies, configs.Mode)
+	settings := g.Settings()
+
+	return Status{
+		Connected:     settings.SystemProxy,
+		Mode:          configs.Mode,
+		SystemProxy:   settings.SystemProxy,
+		Tun:           configs.Tun.Enable,
+		MixedPort:     configs.MixedPort,
+		CoreVersion:   version.Version,
+		UptimeSeconds: int(time.Since(g.started).Seconds()),
+		ExitNode:      exitNode,
+		ExitLatency:   latency,
+	}, nil
+}
+
+func (g *Gateway) Groups(ctx context.Context) ([]ProxyGroup, error) {
+	proxies, err := g.client.Proxies(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := make([]ProxyGroup, 0, 8)
+	for name, proxy := range proxies {
+		strategy, ok := strategyOf(proxy.Type)
+		if !ok {
+			continue
+		}
+		nodes := make([]ProxyNode, 0, len(proxy.All))
+		for _, nodeName := range proxy.All {
+			node := ProxyNode{Name: nodeName}
+			if raw, ok := proxies[nodeName]; ok {
+				node.Latency = lastDelay(raw)
+			}
+			nodes = append(nodes, node)
+		}
+		groups = append(groups, ProxyGroup{
+			ID:       name,
+			Name:     name,
+			Strategy: strategy,
+			Nodes:    nodes,
+			Selected: proxy.Now,
+		})
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].Name < groups[j].Name })
+	return groups, nil
+}
+
+func (g *Gateway) Select(ctx context.Context, group, node string) error {
+	return g.client.Select(ctx, group, node)
+}
+
+// TestGroup re-probes every node of one group; the kernel records the history.
+func (g *Gateway) TestGroup(ctx context.Context, group string) error {
+	proxies, err := g.client.Proxies(ctx)
+	if err != nil {
+		return err
+	}
+	proxy, ok := proxies[group]
+	if !ok {
+		return fmt.Errorf("策略组 %q 不存在", group)
+	}
+	probe(ctx, g.client, proxy.All)
+	return nil
+}
+
+func (g *Gateway) TestAllGroups(ctx context.Context) error {
+	proxies, err := g.client.Proxies(ctx)
+	if err != nil {
+		return err
+	}
+	var names []string
+	for _, proxy := range proxies {
+		if _, ok := strategyOf(proxy.Type); ok {
+			names = append(names, proxy.All...)
+		}
+	}
+	probe(ctx, g.client, names)
+	return nil
+}
+
+func (g *Gateway) SetMode(ctx context.Context, mode string) error {
+	if err := g.client.PatchConfigs(ctx, map[string]any{"mode": mode}); err != nil {
+		return err
+	}
+	return g.updateSettings(func(s *Settings) { s.Mode = mode })
+}
+
+func (g *Gateway) SetSystemProxy(ctx context.Context, on bool) error {
+	// TODO(core): apply through networksetup once OS integration lands; the
+	// flag is persisted and reflected in Status immediately.
+	return g.updateSettings(func(s *Settings) { s.SystemProxy = on })
+}
+
+func (g *Gateway) RestartCore(ctx context.Context) error {
+	if g.core == nil {
+		return errors.New("尚未配置内核路径：在 settings.json 里设置 corePath")
+	}
+	return g.core.Restart()
+}
+
+func (g *Gateway) Connections(ctx context.Context) ([]Connection, error) {
+	raw, err := g.client.Connections(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Connection, 0, len(raw))
+	now := time.Now()
+	for _, conn := range raw {
+		start, _ := time.Parse(time.RFC3339, conn.Start)
+		duration := 0
+		if !start.IsZero() {
+			duration = int(now.Sub(start).Seconds())
+		}
+		exit := "DIRECT"
+		if len(conn.Chains) > 0 {
+			exit = conn.Chains[0]
+		}
+		kind := "proxy"
+		switch {
+		case isReject(exit, conn):
+			kind = "reject"
+		case len(conn.Chains) == 0:
+			kind = "direct"
+		}
+		rule := conn.Rule
+		if conn.RulePay != "" {
+			rule = conn.Rule + "," + conn.RulePay
+		}
+		out = append(out, Connection{
+			ID:              conn.ID,
+			Host:            hostOf(conn),
+			Rule:            rule,
+			Exit:            exit,
+			UploadBytes:     conn.Upload,
+			DownloadBytes:   conn.Download,
+			DurationSeconds: duration,
+			Kind:            kind,
+		})
+	}
+	g.connectionNo.Store(int64(len(out)))
+	return out, nil
+}
+
+func (g *Gateway) CloseConnection(ctx context.Context, id string) error {
+	return g.client.CloseConnection(ctx, id)
+}
+
+func (g *Gateway) CloseAllConnections(ctx context.Context) error {
+	return g.client.CloseAllConnections(ctx)
+}
+
+func (g *Gateway) Rules(ctx context.Context) ([]Rule, error) {
+	raw, err := g.client.Rules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Rule, 0, len(raw))
+	for _, rule := range raw {
+		out = append(out, Rule{Type: rule.Type, Payload: rule.Payload, Policy: rule.Proxy, Hits: rule.Size})
+	}
+	return out, nil
+}
+
+// ReloadRules re-feeds the active profile to the kernel, which re-resolves the
+// rule providers.
+func (g *Gateway) ReloadRules(ctx context.Context) error {
+	path := g.activeConfigPath()
+	if path == "" {
+		return errors.New("还没有可重新载入的订阅")
+	}
+	return g.client.ReloadConfig(ctx, path)
+}
+
+// ClearLogs is a no-op on the kernel side — the console owns its 512-line ring.
+func (g *Gateway) ClearLogs() error { return nil }
+
+func (g *Gateway) OpenLogDirectory() error { return openDirectory(g.dir) }
+
+func (g *Gateway) OpenConfigDirectory() error { return openDirectory(g.dir) }
+
+func (g *Gateway) Profiles(ctx context.Context) ([]Profile, error) {
+	g.profilesMu.Lock()
+	defer g.profilesMu.Unlock()
+
+	nodeCount := 0
+	if proxies, err := g.client.Proxies(ctx); err == nil {
+		nodeCount = countNodes(proxies)
+	}
+
+	out := make([]Profile, 0, len(g.profiles))
+	for _, profile := range g.profiles {
+		profile.Current = profile.ID == g.activeID
+		if profile.Current {
+			profile.NodeCount = nodeCount
+		}
+		out = append(out, profile)
+	}
+	return out, nil
+}
+
+func (g *Gateway) AddProfile(ctx context.Context, rawURL string) error {
+	body, header, err := g.fetchSubscription(ctx, rawURL)
+	if err != nil {
+		return err
+	}
+	id := fmt.Sprintf("p%d", time.Now().UnixNano())
+	_ = os.MkdirAll(filepath.Join(g.dir, "profiles"), 0o755)
+	file := filepath.Join(g.dir, "profiles", id+".yaml")
+	if err := os.WriteFile(file, body, 0o644); err != nil {
+		return err
+	}
+
+	profile := Profile{
+		ID:        id,
+		Name:      hostLabel(rawURL),
+		URL:       maskURL(rawURL),
+		Source:    rawURL,
+		NodeCount: countProxies(body),
+		UpdatedAt: "刚刚",
+		File:      file,
+	}
+	profile.UsedBytes, profile.TotalBytes, profile.ExpiresAt = parseUserInfo(header)
+
+	g.profilesMu.Lock()
+	g.profiles = append(g.profiles, profile)
+	g.activeID = id
+	g.profilesMu.Unlock()
+	g.saveProfiles()
+
+	if err := g.client.ReloadConfig(ctx, file); err != nil {
+		g.log("warn", "订阅已保存，但内核未能载入："+err.Error())
+	}
+	return nil
+}
+
+func (g *Gateway) RemoveProfile(ctx context.Context, id string) error {
+	g.profilesMu.Lock()
+	index := -1
+	for i, profile := range g.profiles {
+		if profile.ID == id {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		g.profilesMu.Unlock()
+		return fmt.Errorf("订阅 %q 不存在", id)
+	}
+	removed := g.profiles[index]
+	g.profiles = append(g.profiles[:index], g.profiles[index+1:]...)
+	if g.activeID == id {
+		g.activeID = ""
+	}
+	g.profilesMu.Unlock()
+
+	_ = os.Remove(removed.File)
+	g.saveProfiles()
+	return nil
+}
+
+func (g *Gateway) RefreshProfile(ctx context.Context, id string) error {
+	g.profilesMu.Lock()
+	index := -1
+	for i, profile := range g.profiles {
+		if profile.ID == id {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		g.profilesMu.Unlock()
+		return fmt.Errorf("订阅 %q 不存在", id)
+	}
+	rawURL := g.profiles[index].Source
+	g.profilesMu.Unlock()
+
+	body, header, err := g.fetchSubscription(ctx, rawURL)
+	if err != nil {
+		return err
+	}
+
+	g.profilesMu.Lock()
+	profile := &g.profiles[index]
+	if err := os.WriteFile(profile.File, body, 0o644); err != nil {
+		g.profilesMu.Unlock()
+		return err
+	}
+	profile.NodeCount = countProxies(body)
+	profile.UpdatedAt = "刚刚"
+	profile.UsedBytes, profile.TotalBytes, profile.ExpiresAt = parseUserInfo(header)
+	active := profile.ID == g.activeID
+	file := profile.File
+	g.profilesMu.Unlock()
+	g.saveProfiles()
+
+	if active {
+		if err := g.client.ReloadConfig(ctx, file); err != nil {
+			g.log("warn", "订阅已更新，但内核未能重载："+err.Error())
+		}
+	}
+	return nil
+}
+
+func (g *Gateway) Settings() Settings {
+	g.settingsMu.Lock()
+	defer g.settingsMu.Unlock()
+	return g.settings
+}
+
+// UpdateSettings merges a partial patch, pushes the kernel-owned subset and
+// persists the result. Values the kernel does not know about stay local.
+func (g *Gateway) UpdateSettings(ctx context.Context, patch map[string]any) (Settings, error) {
+	current, err := json.Marshal(g.Settings())
+	if err != nil {
+		return Settings{}, err
+	}
+	var merged map[string]any
+	if err := json.Unmarshal(current, &merged); err != nil {
+		return Settings{}, err
+	}
+	for key, value := range patch {
+		merged[key] = value
+	}
+	raw, err := json.Marshal(merged)
+	if err != nil {
+		return Settings{}, err
+	}
+	var next Settings
+	if err := json.Unmarshal(raw, &next); err != nil {
+		return Settings{}, err
+	}
+
+	if err := g.updateSettings(func(s *Settings) { *s = next }); err != nil {
+		return Settings{}, err
+	}
+
+	kernel := map[string]any{}
+	if _, ok := patch["mode"]; ok {
+		kernel["mode"] = next.Mode
+	}
+	if _, ok := patch["tun"]; ok {
+		kernel["tun"] = map[string]any{"enable": next.Tun}
+	}
+	if _, ok := patch["mixedPort"]; ok {
+		kernel["mixed-port"] = next.MixedPort
+	}
+	if _, ok := patch["allowLan"]; ok {
+		kernel["allow-lan"] = next.AllowLan
+	}
+	if _, ok := patch["logLevel"]; ok {
+		kernel["log-level"] = next.LogLevel
+	}
+	if len(kernel) > 0 {
+		if err := g.client.PatchConfigs(ctx, kernel); err != nil {
+			g.log("warn", "设置已保存，但内核未接受："+err.Error())
+		}
+	}
+	return next, nil
+}
+
+// Start launches the event pumps. Traffic and logs are pushed to the windows as
+// Wails events; both reconnect on their own when the kernel is restarted.
+func (g *Gateway) Start(ctx context.Context) {
+	go g.pumpTraffic(ctx)
+	go g.pumpLogs(ctx)
+	go g.countConnections(ctx)
+
+	if g.core != nil {
+		if err := g.core.Start(); err != nil {
+			g.log("warn", "内核启动失败："+err.Error())
+		}
+	}
+}
+
+func (g *Gateway) Stop() {
+	if g.core != nil {
+		g.core.Stop()
+	}
+}
+
+func (g *Gateway) pumpTraffic(ctx context.Context) {
+	for ctx.Err() == nil {
+		_ = g.client.Stream(ctx, "/traffic", func(raw []byte) error {
+			var traffic mihomo.Traffic
+			if json.Unmarshal(raw, &traffic) != nil {
+				return nil
+			}
+			g.emit("gateway:traffic", TrafficSample{
+				Down:        traffic.Down,
+				Up:          traffic.Up,
+				Connections: int(g.connectionNo.Load()),
+			})
+			return nil
+		})
+		sleepCtx(ctx, 2*time.Second)
+	}
+}
+
+func (g *Gateway) pumpLogs(ctx context.Context) {
+	g.settingsMu.Lock()
+	level := g.settings.LogLevel
+	g.settingsMu.Unlock()
+	path := "/logs?level=" + url.QueryEscape(level)
+
+	for ctx.Err() == nil {
+		_ = g.client.Stream(ctx, path, func(raw []byte) error {
+			var entry mihomo.Log
+			if json.Unmarshal(raw, &entry) != nil {
+				return nil
+			}
+			g.emit("gateway:log", LogLine{
+				Time:    time.Now().Format("15:04:05.000"),
+				Level:   entry.Type,
+				Message: entry.Payload,
+			})
+			return nil
+		})
+		sleepCtx(ctx, 2*time.Second)
+	}
+}
+
+func (g *Gateway) countConnections(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		if raw, err := g.client.Connections(ctx); err == nil {
+			g.connectionNo.Store(int64(len(raw)))
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// --- helpers ---------------------------------------------------------------
+
+func (g *Gateway) emit(name string, payload any) {
+	if g.app != nil {
+		g.app.Event.Emit(name, payload)
+	}
+}
+
+func (g *Gateway) log(level, message string) {
+	g.emit("gateway:log", LogLine{Time: time.Now().Format("15:04:05.000"), Level: level, Message: message})
+}
+
+func (g *Gateway) updateSettings(mutate func(*Settings)) error {
+	g.settingsMu.Lock()
+	mutate(&g.settings)
+	next := g.settings
+	g.settingsMu.Unlock()
+	return g.saveSettings(next)
+}
+
+func (g *Gateway) activeConfigPath() string {
+	g.profilesMu.Lock()
+	defer g.profilesMu.Unlock()
+	for _, profile := range g.profiles {
+		if profile.ID == g.activeID {
+			return profile.File
+		}
+	}
+	return ""
+}
+
+func (g *Gateway) fetchSubscription(ctx context.Context, rawURL string) ([]byte, http.Header, error) {
+	transport := http.DefaultTransport
+	if g.Settings().ProxyDownload {
+		port := g.Settings().MixedPort
+		transport = &http.Transport{Proxy: http.ProxyURL(&url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", port)})}
+	}
+	client := &http.Client{Timeout: 25 * time.Second, Transport: transport}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Set("User-Agent", "GoClash/3.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, nil, fmt.Errorf("订阅地址返回 %s", resp.Status)
+	}
+	body := make([]byte, 0, 64*1024)
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := resp.Body.Read(buf)
+		body = append(body, buf[:n]...)
+		if err != nil {
+			break
+		}
+		if len(body) > 8*1024*1024 {
+			return nil, nil, errors.New("订阅内容超过 8MB，已中止")
+		}
+	}
+	return body, resp.Header, nil
+}
+
+func (g *Gateway) loadSettings() Settings {
+	settings := defaultSettings()
+	raw, err := os.ReadFile(filepath.Join(g.dir, "settings.json"))
+	if err == nil {
+		_ = json.Unmarshal(raw, &settings)
+	}
+	if settings.ControllerAddr == "" {
+		settings.ControllerAddr = "127.0.0.1:9090"
+	}
+	return settings
+}
+
+func (g *Gateway) saveSettings(settings Settings) error {
+	raw, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(g.dir, "settings.json"), raw, 0o644)
+}
+
+type profilesFile struct {
+	Active string    `json:"active"`
+	Items  []Profile `json:"items"`
+}
+
+func (g *Gateway) loadProfiles() {
+	raw, err := os.ReadFile(filepath.Join(g.dir, "profiles.json"))
+	if err != nil {
+		return
+	}
+	var stored profilesFile
+	if json.Unmarshal(raw, &stored) != nil {
+		return
+	}
+	g.profiles = stored.Items
+	g.activeID = stored.Active
+}
+
+func (g *Gateway) saveProfiles() {
+	g.profilesMu.Lock()
+	stored := profilesFile{Active: g.activeID, Items: g.profiles}
+	g.profilesMu.Unlock()
+	if raw, err := json.MarshalIndent(stored, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(g.dir, "profiles.json"), raw, 0o644)
+	}
+}
+
+func defaultSettings() Settings {
+	return Settings{
+		SystemProxy:            true,
+		MixedPort:              7890,
+		Mode:                   "rule",
+		LogLevel:               "info",
+		AutoUpdateEnabled:      true,
+		AutoUpdateIntervalHour: 12,
+		AutoSwitchLowest:       true,
+		LaunchAtLogin:          true,
+		CloseAction:            "tray",
+		Channel:                "stable",
+		Language:               "简体中文",
+		Theme:                  "light",
+		Accent:                 "coral",
+		MenuBarLatency:         true,
+		ControllerAddr:         "127.0.0.1:9090",
+	}
+}
+
+func strategyOf(proxyType string) (string, bool) {
+	switch proxyType {
+	case "Selector":
+		return "select", true
+	case "URLTest":
+		return "url-test", true
+	case "Fallback":
+		return "fallback", true
+	case "LoadBalance":
+		return "load-balance", true
+	case "Relay":
+		return "relay", true
+	}
+	return "", false
+}
+
+func lastDelay(proxy mihomo.Proxy) *int {
+	if len(proxy.History) == 0 {
+		return nil
+	}
+	delay := proxy.History[len(proxy.History)-1].Delay
+	if delay <= 0 {
+		return nil
+	}
+	return &delay
+}
+
+func currentExit(proxies map[string]mihomo.Proxy, mode string) (string, *int) {
+	if mode == "direct" {
+		return "DIRECT", nil
+	}
+	candidates := []string{"GLOBAL", "节点选择", "PROXY", "Proxy"}
+	if mode == "rule" {
+		candidates = []string{"节点选择", "PROXY", "Proxy", "GLOBAL"}
+	}
+	for _, name := range candidates {
+		if proxy, ok := proxies[name]; ok && proxy.Now != "" {
+			return proxy.Now, lastDelay(proxies[proxy.Now])
+		}
+	}
+	names := make([]string, 0, len(proxies))
+	for name, proxy := range proxies {
+		if _, isGroup := strategyOf(proxy.Type); isGroup && proxy.Now != "" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		proxy := proxies[name]
+		return proxy.Now, lastDelay(proxies[proxy.Now])
+	}
+	return "", nil
+}
+
+func countNodes(proxies map[string]mihomo.Proxy) int {
+	count := 0
+	for _, proxy := range proxies {
+		if _, isGroup := strategyOf(proxy.Type); isGroup {
+			continue
+		}
+		if isBuiltIn(proxy.Type) {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func isBuiltIn(proxyType string) bool {
+	switch proxyType {
+	case "Direct", "Reject", "RejectDrop", "Compatible", "Pass", "Dns":
+		return true
+	}
+	return false
+}
+
+func isReject(exit string, conn mihomo.Connection) bool {
+	if strings.EqualFold(exit, "REJECT") {
+		return true
+	}
+	rule := conn.Rule + " " + conn.RulePay
+	return strings.Contains(strings.ToLower(rule), "reject")
+}
+
+func probe(ctx context.Context, client *mihomo.Client, nodes []string) {
+	sem := make(chan struct{}, 6)
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(node string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			_, _ = client.Delay(ctx, node, "https://www.gstatic.com/generate_204", 3000)
+		}(node)
+	}
+	wg.Wait()
+}
+
+func hostOf(conn mihomo.Connection) string {
+	host := conn.Metadata.Host
+	if host == "" {
+		host = conn.Metadata.DestinationIP
+	}
+	if host == "" {
+		host = "unknown"
+	}
+	if conn.Metadata.DestinationPort != "" {
+		return host + ":" + conn.Metadata.DestinationPort
+	}
+	return host
+}
+
+func hostLabel(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return "新订阅"
+	}
+	return parsed.Hostname()
+}
+
+// maskURL keeps the scheme+host and the first characters of the token so card
+// copy matches the board without exposing the full secret. Built by hand so the
+// ellipsis stays literal instead of being percent-encoded.
+func maskURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	display := parsed.Scheme + "://" + parsed.Host + parsed.Path
+	switch token := parsed.Query().Get("token"); {
+	case token != "":
+		if len(token) > 4 {
+			token = token[:4]
+		}
+		display += "?token=" + token + "…"
+	case parsed.RawQuery != "":
+		display += "?" + parsed.RawQuery
+	}
+	return display
+}
+
+func countProxies(body []byte) int {
+	var doc struct {
+		Proxies []map[string]any `yaml:"proxies"`
+	}
+	if yaml.Unmarshal(body, &doc) != nil {
+		return 0
+	}
+	return len(doc.Proxies)
+}
+
+// parseUserInfo reads the subscription-userinfo header:
+// "upload=1; download=2; total=3; expire=1700000000".
+func parseUserInfo(header http.Header) (int64, int64, string) {
+	value := header.Get("subscription-userinfo")
+	if value == "" {
+		return 0, 0, "未知"
+	}
+	var upload, download, total, expire int64 = 0, 0, 0, 0
+	for _, part := range strings.Split(value, ";") {
+		keyValue := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(keyValue) != 2 {
+			continue
+		}
+		number, _ := strconv.ParseInt(keyValue[1], 10, 64)
+		switch keyValue[0] {
+		case "upload":
+			upload = number
+		case "download":
+			download = number
+		case "total":
+			total = number
+		case "expire":
+			expire = number
+		}
+	}
+	expires := "未知"
+	if expire > 0 {
+		expires = time.Unix(expire, 0).Format("2006-01-02")
+	}
+	return upload + download, total, expires
+}
+
+func openDirectory(path string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	return cmd.Start()
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(d):
+	}
+}

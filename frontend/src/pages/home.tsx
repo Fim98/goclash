@@ -245,13 +245,17 @@ export function HomePage({ gateway, navigate }: { gateway: Gateway; navigate: Pa
               </button>
             </div>
             <div className="text-[23px] font-black leading-[28px] tracking-[-0.8px]">
-              {status.exitIp}
+              {status.exitIp || "—"}
             </div>
-            <div className="text-[10px] font-bold tracking-[0.3px]">{status.exitAsn}</div>
-            <div className="mt-auto flex gap-2">
-              <Tag tone="seafoam">{status.exitRegion}</Tag>
-              <Tag tone="sunny">{status.nativeIp ? "原生 IP" : "中转 IP"}</Tag>
+            <div className="text-[10px] font-bold tracking-[0.3px]">
+              {status.exitAsn || "出口地区未获取"}
             </div>
+            {status.exitRegion ? (
+              <div className="mt-auto flex gap-2">
+                <Tag tone="seafoam">{status.exitRegion}</Tag>
+                <Tag tone="sunny">{status.nativeIp ? "原生 IP" : "中转 IP"}</Tag>
+              </div>
+            ) : null}
           </Card>
         </div>
       </div>
@@ -300,7 +304,7 @@ function Hero({ status, latest, onToggle }: HeroProps) {
 
         <div className="truncate text-sm font-bold">
           {connected
-            ? `${MODE_LABEL[status.mode]}模式 · 延迟 ${formatLatency(status.exitLatency)} · 出口 ${status.exitIp}`
+            ? `${MODE_LABEL[status.mode]}模式 · 延迟 ${formatLatency(status.exitLatency)} · 出口 ${status.exitIp || "—"}`
             : "系统代理已关闭 · 流量不再经过 GoClash"}
         </div>
 

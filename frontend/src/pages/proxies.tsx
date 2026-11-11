@@ -313,7 +313,7 @@ export function ProxiesPage({ gateway, navigate }: { gateway: Gateway; navigate:
               {status.exitNode}
             </div>
             <div className="text-[11px] font-black">
-              {formatLatency(status.exitLatency)} · {status.exitIp}
+              {formatLatency(status.exitLatency)} · {status.exitIp || "—"}
             </div>
           </Card>
 

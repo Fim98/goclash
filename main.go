@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 
@@ -22,11 +23,19 @@ var assets embed.FS
 // no outer chrome of our own): macOS draws the traffic lights inset, and the
 // app chrome starts below them.
 func main() {
+	// One gateway for every window: kernel data, settings and profiles live on
+	// the Go side, so the main window and the tray popup can never disagree.
+	gateway := NewGateway()
+
 	app := application.New(application.Options{
 		Name:        "GoClash",
 		Description: "A Clash Meta desktop client",
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
+		},
+		Services: []application.Service{application.NewService(gateway)},
+		OnShutdown: func() {
+			gateway.Stop()
 		},
 		Mac: application.MacOptions{
 			// Closing the main window keeps the app alive in the menu bar; the
@@ -34,6 +43,11 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	gateway.Attach(app)
+	events, stopEvents := context.WithCancel(context.Background())
+	defer stopEvents()
+	gateway.Start(events)
 
 	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   "main",
